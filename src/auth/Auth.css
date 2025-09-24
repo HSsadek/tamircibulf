@@ -1,0 +1,94 @@
+/* Auth pages styling - follows the LandingPage theme variables */
+:root {
+  --bg: #0b0f1a;
+  --card: #111629;
+  --text: #e7eaf3;
+  --muted: #9aa3b2;
+  --primary: #4f8cff;
+  --primary-700: #3a6fd6;
+  --ring: rgba(79, 140, 255, 0.35);
+}
+
+.auth-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: linear-gradient(180deg, #0b0f1a 0%, #0e1424 100%);
+  color: var(--text);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 560px;
+  background: var(--card);
+  border: 1px solid #1b2240;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.35);
+}
+
+.auth-brand { font-weight: 800; letter-spacing: .3px; margin-bottom: 8px; }
+.auth-brand span { color: var(--primary); }
+
+.auth-section h2 { margin: 4px 0 6px; }
+.auth-section .muted { color: var(--muted); }
+
+.role-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.role-card {
+  display: block;
+  background: #0d1326;
+  border: 1px solid #1b2240;
+  border-radius: 12px;
+  padding: 16px;
+  transition: all .18s ease;
+  color: var(--text);
+}
+.role-card:hover {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--ring);
+}
+.role-card h3 { margin: 6px 0 4px; }
+.role-card p { margin: 0; color: var(--muted); }
+.role-emoji { font-size: 28px; }
+
+.tabs { display: flex; gap: 8px; margin: 8px 0 12px; }
+.tab {
+  background: transparent;
+  border: 1px solid #2a3352;
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.tab.active {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.auth-form { display: grid; gap: 10px; }
+.auth-form label { display: grid; gap: 6px; font-size: 14px; }
+.auth-form input {
+  background: #0d1326;
+  border: 1px solid #1b2240;
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 10px;
+  outline: none;
+}
+.auth-form input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px var(--ring); }
+
+.auth-footer { margin-top: 12px; }
+.auth-footer a { color: var(--muted); }
+
+.small { font-size: 12px; }
+
+@media (max-width: 520px) {
+  .role-grid { grid-template-columns: 1fr; }
+}

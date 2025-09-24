@@ -12,6 +12,7 @@ function LandingPage() {
             <a href="#features">Özellikler</a>
             <a href="#how">Nasıl Çalışır?</a>
             <a href="#ai">AI Yardımı</a>
+            <a href="#/auth" className="btn ghost">Giriş / Kayıt</a>
             <a href="#cta" className="btn primary">Hemen Başla</a>
           </div>
         </div>

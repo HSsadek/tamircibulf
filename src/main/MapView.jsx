@@ -64,6 +64,9 @@ export default function MapView({ userLocation, services, focusedServiceId }) {
             (svc.distanceKm ?? 0).toFixed(1)
           } km<br/>Puan: ${svc.rating.toFixed(1)}</div>`
         );
+        marker.on('click', () => {
+          window.location.hash = `#/service/${svc.id}`;
+        });
         markersRef.current.push({ id: svc.id, marker });
       });
     }

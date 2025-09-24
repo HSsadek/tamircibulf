@@ -3,6 +3,7 @@ import './App.css';
 import LandingPage from './components/LandingPage';
 import AuthLayout from './auth/AuthLayout';
 import MainApp from './main/MainApp';
+import ServiceDetail from './main/ServiceDetail';
 
 function useHash() {
   const [hash, setHash] = useState(window.location.hash || '#/');
@@ -16,6 +17,9 @@ function useHash() {
 
 function App() {
   const hash = useHash();
+  if (hash.startsWith('#/service')) {
+    return <ServiceDetail />;
+  }
   if (hash.startsWith('#/app')) {
     return <MainApp />;
   }

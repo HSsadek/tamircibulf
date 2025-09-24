@@ -57,7 +57,10 @@ export default function ServiceList({ services, sortBy, onSortChange, onContact,
               </div>
               <button
                 className="px-3 py-1.5 text-white bg-blue-600 hover:bg-blue-700 rounded-md w-auto md:w-auto"
-                onClick={() => onContact?.(s)}
+                onClick={() => {
+                  if (onContact) onContact(s);
+                  window.location.hash = `#/service/${s.id}`;
+                }}
               >
                 İletişim / Talep
               </button>

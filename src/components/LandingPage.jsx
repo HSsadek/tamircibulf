@@ -13,7 +13,6 @@ function LandingPage() {
             <a href="#how">Nasıl Çalışır?</a>
             <a href="#ai">AI Yardımı</a>
             <a href="#/auth" className="btn ghost">Giriş / Kayıt</a>
-            <a href="#cta" className="btn primary">Hemen Başla</a>
           </div>
         </div>
       </nav>
@@ -29,7 +28,7 @@ function LandingPage() {
               çözmeyi deneyin.
             </p>
             <div className="hero-cta">
-              <a href="#cta" className="btn primary">Hemen Servis Bul</a>
+              <a href="#/auth" className="btn primary">Hemen Başla</a>
               <a href="#ai" className="btn ghost">AI ile Teşhis</a>
             </div>
           </div>
@@ -110,18 +109,7 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* Search CTA */}
-      <section id="cta" className="section">
-        <div className="container cta-box">
-          <h2>Hemen Servis Bulun</h2>
-          <form className="cta-form" onSubmit={(e) => e.preventDefault()}>
-            <input type="text" placeholder="Şehir / İlçe" aria-label="Şehir veya ilçe" />
-            <input type="text" placeholder="Arıza türü (Örn. Buzdolabı soğutmuyor)" aria-label="Arıza türü" />
-            <button className="btn primary" type="submit">Listele</button>
-          </form>
-          <small className="muted">Bu bir demo arayüzüdür. Entegrasyonlar yakında.</small>
-        </div>
-      </section>
+      
 
       {/* AI Assistant */}
       <section id="ai" className="section alt-bg">

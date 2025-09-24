@@ -1,0 +1,66 @@
+// Mock service data for white goods repair services
+// Fields: id, name, lat, lng, city, district, appliances, rating
+const mockServices = [
+  {
+    id: 's1',
+    name: 'Hızlı Servis Teknik',
+    lat: 41.015137,
+    lng: 28.97953,
+    city: 'İstanbul',
+    district: 'Fatih',
+    appliances: ['Buzdolabı', 'Çamaşır Makinesi', 'Bulaşık Makinesi'],
+    rating: 4.7,
+  },
+  {
+    id: 's2',
+    name: 'Anadolu Beyaz Eşya',
+    lat: 41.022,
+    lng: 29.05,
+    city: 'İstanbul',
+    district: 'Kadıköy',
+    appliances: ['Buzdolabı', 'Kurutma Makinesi'],
+    rating: 4.3,
+  },
+  {
+    id: 's3',
+    name: 'Egem Teknik Servis',
+    lat: 38.423734,
+    lng: 27.142826,
+    city: 'İzmir',
+    district: 'Konak',
+    appliances: ['Buzdolabı', 'Fırın', 'Bulaşık Makinesi'],
+    rating: 4.8,
+  },
+  {
+    id: 's4',
+    name: 'Başkent Tamir Merkezi',
+    lat: 39.92077,
+    lng: 32.85411,
+    city: 'Ankara',
+    district: 'Çankaya',
+    appliances: ['Çamaşır Makinesi', 'Fırın'],
+    rating: 4.5,
+  },
+  {
+    id: 's5',
+    name: 'Marmara Teknik',
+    lat: 40.978,
+    lng: 29.092,
+    city: 'İstanbul',
+    district: 'Ümraniye',
+    appliances: ['Buzdolabı', 'Derin Dondurucu'],
+    rating: 4.1,
+  },
+  {
+    id: 's6',
+    name: 'Eko Beyaz Eşya Servisi',
+    lat: 40.195,
+    lng: 29.06,
+    city: 'Bursa',
+    district: 'Nilüfer',
+    appliances: ['Buzdolabı', 'Bulaşık Makinesi', 'Kurutma Makinesi'],
+    rating: 4.4,
+  },
+];
+
+export default mockServices;

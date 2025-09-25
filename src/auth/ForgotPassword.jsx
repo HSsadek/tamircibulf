@@ -19,7 +19,7 @@ export default function ForgotPassword() {
       {submitted ? (
         <div className="muted">
           İstek alındı. Gelen kutunuzu kontrol edin. <br />
-          <a href="#/auth">Giriş sayfasına dön</a>
+          <a href="#/auth/customer">Giriş sayfasına dön</a>
         </div>
       ) : (
         <form className="auth-form" onSubmit={onSubmit}>

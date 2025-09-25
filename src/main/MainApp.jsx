@@ -4,6 +4,8 @@ import Filters from './Filters';
 import ServiceList from './ServiceList';
 import mockServices from './mockServices';
 import { haversineKm } from './utils';
+import CustomerDashboard from '../dashboard/CustomerDashboard';
+import ServiceDashboard from '../dashboard/ServiceDashboard';
 
 export default function MainApp() {
   // Role from hash param (no setter needed)
@@ -18,6 +20,16 @@ export default function MainApp() {
     return '';
   }, []);
   const [bannerDismissed, setBannerDismissed] = useState(false);
+
+  const showDashboard = useMemo(() => {
+    const hash = window.location.hash || '';
+    const qIndex = hash.indexOf('?');
+    if (qIndex !== -1) {
+      const params = new URLSearchParams(hash.slice(qIndex + 1));
+      return params.get('dashboard') === '1';
+    }
+    return false;
+  }, []);
 
   // Filters
   const [city, setCity] = useState('');
@@ -90,6 +102,11 @@ export default function MainApp() {
     alert(`Talep oluştur (DEMO):\n${svc.name}\nŞehir/İlçe: ${svc.city} / ${svc.district}\nMesafe: ${typeof svc.distanceKm === 'number' ? svc.distanceKm.toFixed(1) + ' km' : '—'}\nPuan: ${svc.rating.toFixed(1)}`);
   };
 
+  if (showDashboard) {
+    if (role === 'service') return <ServiceDashboard />;
+    return <CustomerDashboard />;
+  }
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-4 md:py-6">
       {/* Role-aware banner */}
@@ -115,16 +132,16 @@ export default function MainApp() {
               {role === 'service' ? (
                 <>
                   <a href="#/auth/service" className="px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700">Giriş Yap</a>
-                  <a href="#/auth/service" className="px-3 py-1.5 rounded-md border border-blue-300 text-blue-900 bg-white hover:bg-blue-50">Kayıt Ol</a>
+                  <a href="#/auth/register" className="px-3 py-1.5 rounded-md border border-blue-300 text-blue-900 bg-white hover:bg-blue-50">Kayıt Ol</a>
                   <button onClick={() => setBannerDismissed(true)} className="px-3 py-1.5 rounded-md border border-transparent hover:bg-blue-100">Giriş yapmadan devam et</button>
-                  <a href="#/auth" className="px-3 py-1.5 rounded-md border border-transparent hover:bg-blue-100">Rolü değiştir</a>
+                  <a href="#/auth/register" className="px-3 py-1.5 rounded-md border border-transparent hover:bg-blue-100">Rolü değiştir</a>
                 </>
               ) : (
                 <>
                   <a href="#/auth/customer" className="px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700">Giriş Yap</a>
-                  <a href="#/auth/customer" className="px-3 py-1.5 rounded-md border border-blue-300 text-blue-900 bg-white hover:bg-blue-50">Kayıt Ol</a>
+                  <a href="#/auth/register" className="px-3 py-1.5 rounded-md border border-blue-300 text-blue-900 bg-white hover:bg-blue-50">Kayıt Ol</a>
                   <button onClick={() => setBannerDismissed(true)} className="px-3 py-1.5 rounded-md border border-transparent hover:bg-blue-100">Giriş yapmadan devam et</button>
-                  <a href="#/auth" className="px-3 py-1.5 rounded-md border border-transparent hover:bg-blue-100">Rolü değiştir</a>
+                  <a href="#/auth/register" className="px-3 py-1.5 rounded-md border border-transparent hover:bg-blue-100">Rolü değiştir</a>
                 </>
               )}
             </div>

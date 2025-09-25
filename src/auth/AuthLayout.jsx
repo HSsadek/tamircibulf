@@ -5,6 +5,7 @@ import CustomerAuth from './CustomerAuth';
 import ServiceAuth from './ServiceAuth';
 import ForgotPassword from './ForgotPassword';
 import ResetPassword from './ResetPassword';
+import AuthHome from './AuthHome';
 
 function useHash() {
   const [hash, setHash] = useState(window.location.hash || '#/');
@@ -19,7 +20,10 @@ function useHash() {
 export default function AuthLayout() {
   const hash = useHash();
 
-  let content = <RoleSelect />;
+  let content = <AuthHome />;
+  if (hash.startsWith('#/auth/register')) {
+    content = <RoleSelect />;
+  }
   if (hash.startsWith('#/auth/customer')) {
     content = <CustomerAuth />;
   } else if (hash.startsWith('#/auth/service')) {
@@ -42,3 +46,4 @@ export default function AuthLayout() {
     </div>
   );
 }
+

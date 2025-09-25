@@ -12,7 +12,7 @@ function LandingPage() {
             <a href="#features">Özellikler</a>
             <a href="#how">Nasıl Çalışır?</a>
             <a href="#ai">AI Yardımı</a>
-            <a href="#/auth" className="btn ghost">Giriş / Kayıt</a>
+            <a href="#/auth/customer" className="btn ghost">Giriş / Kayıt</a>
           </div>
         </div>
       </nav>
@@ -28,7 +28,7 @@ function LandingPage() {
               çözmeyi deneyin.
             </p>
             <div className="hero-cta">
-              <a href="#/auth" className="btn primary">Hemen Başla</a>
+              <a href="#/app" className="btn primary">Hemen Başla</a>
               <a href="#ai" className="btn ghost">AI ile Teşhis</a>
             </div>
           </div>

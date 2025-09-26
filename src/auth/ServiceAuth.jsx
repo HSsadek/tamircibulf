@@ -39,8 +39,25 @@ export default function ServiceAuth() {
               <input name="company" type="text" placeholder="Örn. Hızlı Beyaz Eşya Servisi" required />
             </label>
             <label>
-              Şehir
-              <input name="city" type="text" placeholder="Örn. İstanbul" required />
+              Servis Türü
+              <select name="serviceType" required>
+                <option value="">Seçiniz</option>
+                <option value="yetkili">Yetkili Servis</option>
+                <option value="ozel">Özel Servis</option>
+                <option value="bagimsiz">Bağımsız Tamirci</option>
+              </select>
+            </label>
+            <label>
+              Açıklama
+              <textarea name="description" placeholder="Örn. Buzdolabı ve çamaşır makinesi tamiri yapılır" rows={3} required />
+            </label>
+            <label>
+              Adres
+              <textarea name="address" placeholder="Örn. Mahalle, Cadde, No, İlçe/İl" rows={2} required />
+            </label>
+            <label>
+              Telefon
+              <input name="phone" type="tel" placeholder="05xx xxx xx xx" required />
             </label>
           </>
         )}
@@ -54,13 +71,6 @@ export default function ServiceAuth() {
           Şifre
           <input name="password" type="password" placeholder="••••••••" minLength={6} required />
         </label>
-
-        {mode === 'register' && (
-          <label>
-            Telefon
-            <input name="phone" type="tel" placeholder="05xx xxx xx xx" />
-          </label>
-        )}
 
         <button className="btn primary" type="submit">
           {mode === 'login' ? 'Giriş Yap' : 'Kayıt Ol'}

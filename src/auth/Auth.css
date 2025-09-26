@@ -74,7 +74,9 @@
 
 .auth-form { display: grid; gap: 10px; }
 .auth-form label { display: grid; gap: 6px; font-size: 14px; }
-.auth-form input {
+.auth-form input,
+.auth-form select,
+.auth-form textarea {
   background: #0d1326;
   border: 1px solid #1b2240;
   color: var(--text);
@@ -82,7 +84,13 @@
   border-radius: 10px;
   outline: none;
 }
-.auth-form input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px var(--ring); }
+.auth-form input:focus,
+.auth-form select:focus,
+.auth-form textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 4px var(--ring); }
+
+/* Placeholder readability */
+.auth-form input::placeholder,
+.auth-form textarea::placeholder { color: var(--muted); }
 
 .auth-footer { margin-top: 12px; }
 .auth-footer a { color: var(--muted); }

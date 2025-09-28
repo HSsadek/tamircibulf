@@ -5,6 +5,7 @@ import AuthLayout from './auth/AuthLayout';
 import MainApp from './main/MainApp';
 import ServiceDetail from './main/ServiceDetail';
 import ServiceRegistration from './service/ServiceRegistration';
+import PendingApproval from './auth/PendingApproval';
 
 function useHash() {
   const [hash, setHash] = useState(window.location.hash || '#/');
@@ -18,6 +19,9 @@ function useHash() {
 
 function App() {
   const hash = useHash();
+  if (hash.startsWith('#/pending-approval')) {
+    return <PendingApproval />;
+  }
   if (hash.startsWith('#/service-register')) {
     return <ServiceRegistration />;
   }

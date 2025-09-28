@@ -35,8 +35,16 @@ export default function CustomerAuth() {
         {mode === 'register' && (
           <>
             <label>
-              Ad Soyad
-              <input name="fullName" type="text" placeholder="Adınız Soyadınız" required />
+              Ad
+              <input name="firstName" type="text" placeholder="Adınız" required />
+            </label>
+            <label>
+              Soyad
+              <input name="lastName" type="text" placeholder="Soyadınız" required />
+            </label>
+            <label>
+              Adres
+              <textarea name="address" placeholder="Örn. Mahalle, Cadde, No, İlçe/İl" rows={2} />
             </label>
           </>
         )}

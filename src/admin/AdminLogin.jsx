@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import './Admin.css';
 
 export default function AdminLogin() {
   const [loading, setLoading] = useState(false);
@@ -12,6 +13,11 @@ export default function AdminLogin() {
 
     try {
       setLoading(true);
+      // If already logged in, go directly
+      if (localStorage.getItem('admin_token')) {
+        window.location.hash = '#/admin';
+        return;
+      }
       const res = await fetch('http://localhost:8000/api/admin/login', {
         method: 'POST',
         headers: {
@@ -42,8 +48,8 @@ export default function AdminLogin() {
       localStorage.setItem('admin_token', token);
       if (data?.user) localStorage.setItem('admin_user', JSON.stringify(data.user));
 
-      // Redirect to admin dashboard (placeholder)
-      window.location.hash = '#/app?role=admin&dashboard=1';
+      // Redirect to admin dashboard route
+      window.location.hash = '#/admin';
     } catch (err) {
       setError(err?.message || 'Bir hata oluştu.');
     } finally {
@@ -52,28 +58,43 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-card" style={{ maxWidth: 420 }}>
-        <div className="auth-brand">TamirciBul<span>.com</span> <small style={{opacity:.6}}>/ Admin</small></div>
-        <div className="auth-section">
-          <h2>Yönetici Girişi</h2>
-          <form className="auth-form" onSubmit={onSubmit} autoComplete="off">
-            <label>
-              E-posta
-              <input name="email" type="email" placeholder="admin@mail.com" required />
-            </label>
-            <label>
-              Şifre
-              <input name="password" type="password" placeholder="••••••••" minLength={8} required />
-            </label>
-            <button className="btn primary" type="submit" disabled={loading}>
-              {loading ? 'Giriş Yapılıyor...' : 'Giriş Yap'}
-            </button>
-          </form>
+    <div className="admin-login-page">
+      <div className="admin-login-card">
+        <h1 className="admin-login-title">TamirciBul Admin</h1>
+        <p className="admin-login-subtitle">Yönetici paneline giriş yapın</p>
+        
+        <form onSubmit={onSubmit} autoComplete="off">
+          <div className="admin-form-group">
+            <label className="admin-form-label">E-posta</label>
+            <input 
+              name="email" 
+              type="email" 
+              className="admin-form-input"
+              placeholder="admin@tamircibul.com" 
+              required 
+            />
+          </div>
+          
+          <div className="admin-form-group">
+            <label className="admin-form-label">Şifre</label>
+            <input 
+              name="password" 
+              type="password" 
+              className="admin-form-input"
+              placeholder="••••••••" 
+              minLength={8} 
+              required 
+            />
+          </div>
+          
+          <button className="admin-btn admin-btn-primary" type="submit" disabled={loading}>
+            {loading ? 'Giriş Yapılıyor...' : 'Giriş Yap'}
+          </button>
+          
           {error && (
-            <p className="muted small" style={{ color: 'crimson', marginTop: 8 }}>{error}</p>
+            <div className="admin-error">{error}</div>
           )}
-        </div>
+        </form>
       </div>
     </div>
   );

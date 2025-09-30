@@ -52,42 +52,93 @@ export default function ServiceDashboard() {
       return;
     }
     
-    fetchDashboardData();
-  }, [auth.token, auth.user]);
+    // Simple fetch without useCallback to avoid dependency issues
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        
+        console.log('Fetching dashboard data with token:', auth.token);
+        
+        // Fetch service dashboard data
+        const dashboardRes = await fetch('http://localhost:8000/api/service/dashboard', {
+          headers: {
+            'Authorization': `Bearer ${auth.token}`,
+            'Accept': 'application/json'
+          }
+        });
+        
+        console.log('Dashboard response status:', dashboardRes.status);
+        
+        if (dashboardRes.ok) {
+          const dashboardData = await dashboardRes.json();
+          console.log('Dashboard data received:', dashboardData);
+          
+          if (dashboardData.success) {
+            setStats(dashboardData.data?.stats || {
+              totalRequests: 0,
+              pendingRequests: 0,
+              completedJobs: 0,
+              earnings: 0
+            });
+          }
+        } else {
+          const errorData = await dashboardRes.json();
+          console.error('Dashboard API error:', errorData);
+          setError(errorData.message || 'Dashboard verileri alınamadı');
+        }
+        
+        // Fetch service requests
+        const requestsRes = await fetch('http://localhost:8000/api/service/requests', {
+          headers: {
+            'Authorization': `Bearer ${auth.token}`,
+            'Accept': 'application/json'
+          }
+        });
+        
+        console.log('Requests response status:', requestsRes.status);
+        
+        if (requestsRes.ok) {
+          const requestsData = await requestsRes.json();
+          console.log('Requests data received:', requestsData);
+          setRequests(requestsData?.data || requestsData?.requests || []);
+        } else {
+          console.error('Requests API error:', await requestsRes.json());
+        }
+        
+      } catch (err) {
+        console.error('Dashboard data fetch error:', err);
+        setError('Dashboard verileri yüklenirken hata oluştu: ' + err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, [auth.token]); // Only depend on auth.token
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      setError('');
       
-      // Fetch service requests
-      const requestsRes = await fetch('http://localhost:8000/api/service/requests', {
+      const dashboardRes = await fetch('http://localhost:8000/api/service/dashboard', {
         headers: {
           'Authorization': `Bearer ${auth.token}`,
           'Accept': 'application/json'
         }
       });
       
-      if (requestsRes.ok) {
-        const requestsData = await requestsRes.json();
-        setRequests(requestsData?.data || requestsData?.requests || []);
-      }
-      
-      // Fetch service stats
-      const statsRes = await fetch('http://localhost:8000/api/service/stats', {
-        headers: {
-          'Authorization': `Bearer ${auth.token}`,
-          'Accept': 'application/json'
+      if (dashboardRes.ok) {
+        const dashboardData = await dashboardRes.json();
+        if (dashboardData.success) {
+          setStats(dashboardData.data?.stats || stats);
         }
-      });
-      
-      if (statsRes.ok) {
-        const statsData = await statsRes.json();
-        setStats(statsData?.data || statsData?.stats || stats);
       }
       
     } catch (err) {
-      console.error('Dashboard data fetch error:', err);
-      setError('Dashboard verileri yüklenirken hata oluştu.');
+      console.error('Refresh error:', err);
+      setError('Veriler yenilenirken hata oluştu');
     } finally {
       setLoading(false);
     }
@@ -128,6 +179,36 @@ export default function ServiceDashboard() {
 
   if (!auth.token) {
     return <div>Yönlendiriliyor...</div>;
+  }
+
+  // Early return for loading state
+  if (loading) {
+    return (
+      <div className="service-dashboard" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <div style={{ textAlign: 'center' }}>
+          <h2>Servis Dashboard Yükleniyor...</h2>
+          <p>Lütfen bekleyin...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Early return for error state
+  if (error) {
+    return (
+      <div className="service-dashboard" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <div style={{ textAlign: 'center', color: 'red' }}>
+          <h2>Hata Oluştu</h2>
+          <p>{error}</p>
+          <button onClick={fetchDashboardData} style={{ padding: '10px 20px', marginTop: '10px' }}>
+            Tekrar Dene
+          </button>
+          <button onClick={() => auth.logout()} style={{ padding: '10px 20px', marginTop: '10px', marginLeft: '10px' }}>
+            Çıkış Yap
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

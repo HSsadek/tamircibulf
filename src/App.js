@@ -11,6 +11,7 @@ import AdminProtectedRoute from './admin/AdminProtectedRoute';
 import UnifiedLogin from './components/UnifiedLogin';
 import Register from './components/Register';
 import CustomerHomepage from './components/CustomerHomepage';
+import CustomerDashboard from './components/CustomerDashboard';
 import ServiceDashboard from './components/ServiceDashboard';
 
 function useHash() {
@@ -59,6 +60,9 @@ function App() {
   // Other routes
   if (hash.startsWith('#/pending-approval')) {
     return <PendingApproval />;
+  }
+  if (hash.startsWith('#/customer-dashboard')) {
+    return <CustomerDashboard />;
   }
   if (hash.startsWith('#/app')) {
     return <MainApp />;

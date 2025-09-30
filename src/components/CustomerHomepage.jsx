@@ -33,6 +33,8 @@ export default function CustomerHomepage() {
   const [showAIChat, setShowAIChat] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
+  const [showMap, setShowMap] = useState(false);
+  const [userLocation, setUserLocation] = useState(null);
 
   const categories = [
     { id: 'all', name: 'Tümü', icon: '🔧' },
@@ -47,11 +49,39 @@ export default function CustomerHomepage() {
 
   useEffect(() => {
     fetchServices();
+    getUserLocation();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     filterServices();
   }, [services, selectedCategory, searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const getUserLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+        },
+        (error) => {
+          console.log('Konum alınamadı:', error);
+          // Default İstanbul koordinatları
+          setUserLocation({
+            lat: 41.0082,
+            lng: 28.9784
+          });
+        }
+      );
+    } else {
+      // Default İstanbul koordinatları
+      setUserLocation({
+        lat: 41.0082,
+        lng: 28.9784
+      });
+    }
+  };
 
   const fetchServices = async () => {
     try {
@@ -168,6 +198,7 @@ export default function CustomerHomepage() {
             {auth.user ? (
               <div className="customer-user-menu">
                 <span>Merhaba, {auth.user.name || 'Müşteri'}</span>
+                <a href="#/customer-dashboard" className="customer-dashboard-btn">📊 Panelim</a>
                 <button onClick={auth.logout} className="customer-logout-btn">Çıkış</button>
               </div>
             ) : (
@@ -219,13 +250,83 @@ export default function CustomerHomepage() {
       {/* Services List */}
       <section className="customer-services">
         <div className="customer-container">
-          <h3>
-            {selectedCategory === 'all' ? 'Tüm Hizmetler' : 
-             categories.find(c => c.id === selectedCategory)?.name || 'Hizmetler'}
-          </h3>
+          <div className="services-header">
+            <h3>
+              {selectedCategory === 'all' ? 'Tüm Hizmetler' : 
+               categories.find(c => c.id === selectedCategory)?.name || 'Hizmetler'}
+            </h3>
+            <div className="view-toggle">
+              <button 
+                className={`view-btn ${!showMap ? 'active' : ''}`}
+                onClick={() => setShowMap(false)}
+              >
+                📋 Liste
+              </button>
+              <button 
+                className={`view-btn ${showMap ? 'active' : ''}`}
+                onClick={() => setShowMap(true)}
+              >
+                🗺️ Harita
+              </button>
+            </div>
+          </div>
           
           {loading ? (
             <div className="customer-loading">Hizmetler yükleniyor...</div>
+          ) : showMap ? (
+            <div className="customer-map-container">
+              {userLocation ? (
+                <div className="map-wrapper">
+                  <div className="map-placeholder">
+                    <div className="map-header">
+                      <h4>🗺️ Servis Sağlayıcıları Haritası</h4>
+                      <p>Konumunuz: {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}</p>
+                    </div>
+                    
+                    <div className="map-content">
+                      <div className="map-center-marker">
+                        <div className="user-marker">📍 Sen</div>
+                      </div>
+                      
+                      <div className="service-markers">
+                        {filteredServices.map((service, index) => (
+                          <div 
+                            key={service.id} 
+                            className="service-marker"
+                            style={{
+                              top: `${20 + (index % 3) * 25}%`,
+                              left: `${30 + (index % 4) * 20}%`
+                            }}
+                            onClick={() => handleServiceRequest(service.id)}
+                          >
+                            <div className="marker-icon">{service.image}</div>
+                            <div className="marker-info">
+                              <strong>{service.name}</strong>
+                              <div>⭐ {service.rating}</div>
+                              <div>{service.distance}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      <div className="map-controls">
+                        <button className="map-control-btn">🔍 Yakınlaştır</button>
+                        <button className="map-control-btn">🔍 Uzaklaştır</button>
+                        <button className="map-control-btn">📍 Konumum</button>
+                      </div>
+                    </div>
+                    
+                    <div className="map-footer">
+                      <p>💡 Gerçek harita entegrasyonu için Google Maps API gereklidir</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="location-loading">
+                  <p>Konum bilgisi alınıyor...</p>
+                </div>
+              )}
+            </div>
           ) : (
             <div className="customer-services-grid">
               {filteredServices.map(service => (

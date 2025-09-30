@@ -1,4 +1,4 @@
-:root{
+:root {
   --primary: #2563eb;
   --primary-dark: #1d4ed8;
   --secondary: #64748b;
@@ -45,8 +45,34 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Ro
 .admin-login-subtitle {
   color: var(--text-muted);
   text-align: center;
-  margin: 0 0 24px;
+  margin: 0 0 16px;
 }
+
+/* Backend Status */
+.backend-status {
+  text-align: center;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-bottom: 20px;
+  font-weight: 500;
+}
+.backend-status.checking {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--warning);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+.backend-status.online {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--success);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+.backend-status.offline {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
 .admin-form-group {
   margin-bottom: 16px;
 }
@@ -54,30 +80,61 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Ro
   display: block;
   font-weight: 500;
   color: var(--text);
-  margin-bottom: 6px;
   font-size: 14px;
+  margin-bottom: 6px;
 }
 .admin-form-input {
   width: 100%;
   padding: 12px 16px;
-  border: 2px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: 8px;
   font-size: 14px;
-  transition: border-color 0.2s;
-  background: var(--surface);
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 .admin-form-input:focus {
   outline: none;
   border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
-.admin-btn {
-  display: inline-flex;
+.admin-form-input[readonly] {
+  background-color: var(--bg);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+.admin-form-input[readonly]:focus {
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+/* Password Input with Toggle */
+.admin-password-input-wrapper {
+  position: relative;
+  display: flex;
   align-items: center;
-  justify-content: center;
+}
+.admin-password-input-wrapper .admin-form-input {
+  padding-right: 45px;
+}
+.admin-password-toggle {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+.admin-password-toggle:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.admin-btn {
   padding: 12px 24px;
   border-radius: 8px;
-  font-weight: 500;
   font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
   border: none;
@@ -101,6 +158,111 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Ro
   margin-top: 8px;
 }
 
+/* Forgot Password Button */
+.admin-forgot-password-btn {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: underline;
+  margin-top: 12px;
+  width: 100%;
+  text-align: center;
+  padding: 8px;
+  transition: color 0.2s;
+}
+.admin-forgot-password-btn:hover {
+  color: var(--primary-dark);
+}
+
+/* Modal Styles */
+.admin-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+.admin-modal {
+  background: var(--surface);
+  border-radius: 16px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.admin-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 24px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.admin-modal-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+}
+.admin-modal-close {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+.admin-modal-close:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+.admin-modal form {
+  padding: 24px;
+}
+.admin-modal-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+.admin-modal-actions .admin-btn {
+  flex: 1;
+}
+.admin-btn-secondary {
+  background: var(--border);
+  color: var(--text);
+}
+.admin-btn-secondary:hover:not(:disabled) {
+  background: var(--secondary);
+  color: white;
+}
+
+/* Message Styles */
+.admin-message {
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-top: 16px;
+}
+.admin-message.success {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--success);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+.admin-message.error {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
 /* Admin Dashboard Layout */
 .admin-dashboard {
   display: flex;
@@ -114,10 +276,8 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Ro
   display: flex;
   flex-direction: column;
   position: fixed;
-  top: 0;
-  left: 0;
   height: 100vh;
-  z-index: 100;
+  overflow-y: auto;
 }
 .admin-sidebar-header {
   padding: 24px 20px;
@@ -127,36 +287,36 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Ro
   font-size: 20px;
   font-weight: 700;
   margin: 0;
+  color: var(--sidebar-text);
 }
 .admin-sidebar-nav {
   flex: 1;
-  padding: 16px 0;
+  padding: 20px 0;
 }
 .admin-nav-item {
   display: flex;
   align-items: center;
+  gap: 12px;
   padding: 12px 20px;
-  color: rgba(255,255,255,0.7);
-  text-decoration: none;
-  transition: all 0.2s;
-  cursor: pointer;
-  border: none;
   background: none;
+  border: none;
+  color: rgba(255,255,255,0.7);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
   width: 100%;
   text-align: left;
-  font-size: 14px;
 }
 .admin-nav-item:hover {
-  background: rgba(255,255,255,0.05);
-  color: white;
+  background: rgba(255,255,255,0.1);
+  color: var(--sidebar-text);
 }
 .admin-nav-item.active {
   background: rgba(37, 99, 235, 0.2);
-  color: white;
+  color: var(--sidebar-text);
   border-right: 3px solid var(--primary);
 }
 .admin-nav-icon {
-  margin-right: 12px;
   font-size: 16px;
 }
 .admin-sidebar-footer {
@@ -168,9 +328,22 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Ro
   align-items: center;
   justify-content: space-between;
 }
+.admin-user-name {
+  font-size: 14px;
+  color: var(--sidebar-text);
+  font-weight: 600;
+  margin-bottom: 2px;
+}
 .admin-user-email {
   font-size: 12px;
   color: rgba(255,255,255,0.6);
+  margin-bottom: 2px;
+}
+.admin-user-role {
+  font-size: 11px;
+  color: rgba(255,255,255,0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 .admin-logout-btn {
   background: rgba(255,255,255,0.1);
@@ -186,7 +359,6 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Ro
   background: rgba(255,255,255,0.2);
 }
 
-/* Main Content */
 .admin-main {
   flex: 1;
   display: flex;
@@ -197,12 +369,20 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Ro
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 .admin-header-title {
   font-size: 24px;
   font-weight: 600;
   color: var(--text);
   margin: 0;
+}
+.admin-header-user {
+  font-size: 14px;
+  color: var(--text-muted);
+  font-weight: 500;
 }
 .admin-content {
   flex: 1;
@@ -214,16 +394,14 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Ro
   background: var(--surface);
   border-radius: 12px;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-  border: 1px solid var(--border);
   overflow: hidden;
 }
 .admin-card-header {
   padding: 20px 24px;
   border-bottom: 1px solid var(--border);
-  background: #f8fafc;
 }
 .admin-card-title {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--text);
   margin: 0;
@@ -232,18 +410,18 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Ro
   padding: 24px;
 }
 
-/* Request List */
+/* Request Items */
 .admin-request-item {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
   padding: 16px 24px;
   border-bottom: 1px solid var(--border);
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background-color 0.2s;
 }
 .admin-request-item:hover {
-  background: #f8fafc;
+  background: var(--bg);
 }
 .admin-request-item:last-child {
   border-bottom: none;
@@ -254,34 +432,35 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Ro
 }
 .admin-request-status {
   padding: 4px 8px;
-  border-radius: 12px;
+  border-radius: 4px;
   font-size: 12px;
   font-weight: 500;
+  text-transform: uppercase;
 }
 .admin-request-status.pending {
-  background: #fef3c7;
-  color: #92400e;
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--warning);
 }
 .admin-request-status.approved {
-  background: #d1fae5;
-  color: #065f46;
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--success);
 }
 .admin-request-status.rejected {
-  background: #fee2e2;
-  color: #991b1b;
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
 }
 
 /* Pagination */
 .admin-pagination {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
   padding: 16px 24px;
   border-top: 1px solid var(--border);
 }
 .admin-pagination-info {
-  color: var(--text-muted);
   font-size: 14px;
+  color: var(--text-muted);
 }
 .admin-pagination-controls {
   display: flex;
@@ -293,8 +472,8 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Ro
   background: var(--surface);
   color: var(--text);
   border-radius: 6px;
-  cursor: pointer;
   font-size: 14px;
+  cursor: pointer;
   transition: all 0.2s;
 }
 .admin-pagination-btn:hover:not(:disabled) {
@@ -322,17 +501,16 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Ro
   height: 100vh;
   background: var(--surface);
   box-shadow: -4px 0 6px -1px rgba(0, 0, 0, 0.1);
-  border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  z-index: 50;
+  z-index: 100;
 }
 .admin-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: 20px 24px;
   border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
 }
 .admin-detail-title {
   font-size: 18px;
@@ -343,10 +521,15 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Ro
 .admin-detail-close {
   background: none;
   border: none;
-  font-size: 20px;
+  font-size: 18px;
   cursor: pointer;
   color: var(--text-muted);
   padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+.admin-detail-close:hover {
+  background: var(--bg);
 }
 .admin-detail-body {
   flex: 1;
@@ -365,8 +548,9 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Ro
   margin-bottom: 4px;
 }
 .admin-detail-value {
-  color: var(--text);
   font-size: 14px;
+  color: var(--text);
+  word-wrap: break-word;
 }
 .admin-detail-actions {
   padding: 20px 24px;
@@ -378,33 +562,34 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Ro
   flex: 1;
   padding: 12px;
   border-radius: 8px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
   border: none;
-  font-size: 14px;
 }
 .admin-detail-btn.approve {
   background: var(--success);
   color: white;
 }
-.admin-detail-btn.approve:hover {
+.admin-detail-btn.approve:hover:not(:disabled) {
   background: #059669;
 }
 .admin-detail-btn.reject {
   background: var(--danger);
   color: white;
 }
-.admin-detail-btn.reject:hover {
+.admin-detail-btn.reject:hover:not(:disabled) {
   background: #dc2626;
+}
+.admin-detail-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* Form Styles */
 .admin-form {
   max-width: 600px;
-}
-.admin-form .admin-form-group {
-  margin-bottom: 20px;
 }
 .admin-form-actions {
   display: flex;
@@ -414,35 +599,29 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Ro
 .admin-form-btn {
   padding: 12px 24px;
   border-radius: 8px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
   border: none;
-  font-size: 14px;
 }
 .admin-form-btn.primary {
   background: var(--primary);
   color: white;
 }
+.admin-form-btn.primary:hover {
+  background: var(--primary-dark);
+}
 .admin-form-btn.secondary {
-  background: var(--bg);
+  background: var(--border);
   color: var(--text);
-  border: 1px solid var(--border);
+}
+.admin-form-btn.secondary:hover {
+  background: var(--secondary);
+  color: white;
 }
 
 /* Responsive */
-@media (max-width: 768px) {
-  .admin-sidebar {
-    width: 240px;
-  }
-  .admin-main {
-    margin-left: 240px;
-  }
-  .admin-detail-panel {
-    width: 100%;
-  }
-}
-
 @media (max-width: 640px) {
   .admin-sidebar {
     width: 200px;

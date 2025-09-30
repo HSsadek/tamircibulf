@@ -3,7 +3,18 @@ import React, { useEffect, useMemo, useState } from 'react';
 function useAdminAuth() {
   return useMemo(() => ({
     get token() { return localStorage.getItem('admin_token'); },
-    get user() { try { return JSON.parse(localStorage.getItem('admin_user') || 'null'); } catch { return null; } },
+    get user() { 
+      try { 
+        const userData = localStorage.getItem('admin_user');
+        console.log('Raw user data from localStorage:', userData);
+        const parsed = JSON.parse(userData || 'null');
+        console.log('Parsed user data:', parsed);
+        return parsed;
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+        return null;
+      }
+    },
     logout() {
       localStorage.removeItem('admin_token');
       localStorage.removeItem('admin_user');
@@ -20,10 +31,20 @@ export default function AdminDashboard() {
   const [requests, setRequests] = useState([]); // Current page requests
   const [selected, setSelected] = useState(null);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
   const [page, setPage] = useState(1);
   const perPage = 10;
   const [total, setTotal] = useState(0);
   const [tab, setTab] = useState('requests'); // 'requests' | 'profile' | 'settings' | 'complaints'
+  
+  // Debug user info on component mount
+  useEffect(() => {
+    console.log('AdminDashboard mounted');
+    console.log('Auth token:', auth.token ? 'Present' : 'Missing');
+    console.log('Auth user:', auth.user);
+    console.log('localStorage admin_user:', localStorage.getItem('admin_user'));
+    console.log('localStorage admin_token:', localStorage.getItem('admin_token') ? 'Present' : 'Missing');
+  }, [auth.token, auth.user]);
 
   // Fetch all requests once
   useEffect(() => {
@@ -80,8 +101,9 @@ export default function AdminDashboard() {
   }, [allRequests, page, perPage]);
 
   const onApprove = async (id) => {
-    if (!auth.token) return;
+    if (!auth.token || actionLoading) return;
     try {
+      setActionLoading(true);
       // NOTE: Adjust endpoint/method according to your backend
       const res = await fetch(`http://localhost:8000/api/admin/service-requests/${id}/approve`, {
         method: 'POST',
@@ -89,17 +111,27 @@ export default function AdminDashboard() {
       });
       if (!res.ok) throw new Error('Onay başarısız.');
       
-      // Update both allRequests and current page requests
-      setAllRequests((list) => list.map((r) => r.id === id ? { ...r, status: 'approved' } : r));
-      setRequests((list) => list.map((r) => r.id === id ? { ...r, status: 'approved' } : r));
+      // Filter out the approved application from both allRequests and current page requests
+      setAllRequests((list) => list.filter((r) => r.id !== id));
+      setRequests((list) => list.filter((r) => r.id !== id));
+      
+      // Update total count
+      setTotal((prevTotal) => prevTotal - 1);
+      
+      // Close detail panel
+      setPanelOpen(false);
+      setSelected(null);
     } catch (err) {
       alert(err?.message || 'Onaylanamadı');
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const onReject = async (id) => {
-    if (!auth.token) return;
+    if (!auth.token || actionLoading) return;
     try {
+      setActionLoading(true);
       // NOTE: Adjust endpoint/method according to your backend
       const res = await fetch(`http://localhost:8000/api/admin/service-requests/${id}/reject`, {
         method: 'POST',
@@ -107,11 +139,20 @@ export default function AdminDashboard() {
       });
       if (!res.ok) throw new Error('Reddetme başarısız.');
       
-      // Update both allRequests and current page requests
-      setAllRequests((list) => list.map((r) => r.id === id ? { ...r, status: 'rejected' } : r));
-      setRequests((list) => list.map((r) => r.id === id ? { ...r, status: 'rejected' } : r));
+      // Filter out the rejected application from both allRequests and current page requests
+      setAllRequests((list) => list.filter((r) => r.id !== id));
+      setRequests((list) => list.filter((r) => r.id !== id));
+      
+      // Update total count
+      setTotal((prevTotal) => prevTotal - 1);
+      
+      // Close detail panel
+      setPanelOpen(false);
+      setSelected(null);
     } catch (err) {
       alert(err?.message || 'Reddedilemedi');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -167,7 +208,16 @@ export default function AdminDashboard() {
         <div className="admin-sidebar-footer">
           <div className="admin-user-info">
             <div>
-              <div className="admin-user-email">{auth.user?.email || 'admin@tamircibul.com'}</div>
+              <div className="admin-user-name">
+                {auth.user?.name || auth.user?.full_name || auth.user?.username || 
+                 (auth.user?.email ? auth.user.email.split('@')[0] : null) || 'Yönetici'}
+              </div>
+              <div className="admin-user-email">
+                {auth.user?.email || (auth.token ? 'E-posta bilgisi yok' : 'Giriş yapılmamış')}
+              </div>
+              <div className="admin-user-role">
+                {auth.user?.role || auth.user?.user_type || auth.user?.position || 'Admin'}
+              </div>
             </div>
             <button className="admin-logout-btn" onClick={() => auth.logout()}>
               Çıkış
@@ -180,6 +230,10 @@ export default function AdminDashboard() {
       <div className="admin-main">
         <header className="admin-header">
           <h1 className="admin-header-title">{getTabTitle()}</h1>
+          <div className="admin-header-user">
+            <span>Hoş geldin, {auth.user?.name || auth.user?.full_name || auth.user?.username || 
+                   (auth.user?.email ? auth.user.email.split('@')[0] : null) || 'Admin'}</span>
+          </div>
         </header>
         
         <div className="admin-content">
@@ -262,7 +316,8 @@ export default function AdminDashboard() {
                     <input 
                       type="text" 
                       className="admin-form-input"
-                      defaultValue={auth.user?.name || ''} 
+                      defaultValue={auth.user?.name || auth.user?.full_name || auth.user?.username || 
+                                   (auth.user?.email ? auth.user.email.split('@')[0] : '') || ''} 
                       placeholder="Ad Soyad" 
                     />
                   </div>
@@ -271,10 +326,32 @@ export default function AdminDashboard() {
                     <input 
                       type="email" 
                       className="admin-form-input"
-                      defaultValue={auth.user?.email || ''} 
-                      placeholder="E-posta" 
+                      defaultValue={auth.user?.email || 'E-posta bilgisi mevcut değil'} 
+                      placeholder="E-posta adresi" 
+                      readOnly
                     />
                   </div>
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">Rol</label>
+                    <input 
+                      type="text" 
+                      className="admin-form-input"
+                      defaultValue={auth.user?.role || auth.user?.user_type || auth.user?.position || 'Yönetici'} 
+                      placeholder="Kullanıcı rolü" 
+                      readOnly
+                    />
+                  </div>
+                  {auth.user?.created_at && (
+                    <div className="admin-form-group">
+                      <label className="admin-form-label">Kayıt Tarihi</label>
+                      <input 
+                        type="text" 
+                        className="admin-form-input"
+                        defaultValue={new Date(auth.user.created_at).toLocaleDateString('tr-TR')} 
+                        readOnly
+                      />
+                    </div>
+                  )}
                   <div className="admin-form-actions">
                     <button className="admin-form-btn primary" type="submit">Kaydet</button>
                     <button className="admin-form-btn secondary" type="button" onClick={()=>window.location.reload()}>
@@ -352,11 +429,19 @@ export default function AdminDashboard() {
           </div>
           
           <div className="admin-detail-actions">
-            <button className="admin-detail-btn approve" onClick={() => onApprove(selected.id)}>
-              Onayla
+            <button 
+              className="admin-detail-btn approve" 
+              onClick={() => onApprove(selected.id)}
+              disabled={actionLoading}
+            >
+              {actionLoading ? 'İşleniyor...' : 'Onayla'}
             </button>
-            <button className="admin-detail-btn reject" onClick={() => onReject(selected.id)}>
-              Reddet
+            <button 
+              className="admin-detail-btn reject" 
+              onClick={() => onReject(selected.id)}
+              disabled={actionLoading}
+            >
+              {actionLoading ? 'İşleniyor...' : 'Reddet'}
             </button>
           </div>
         </div>

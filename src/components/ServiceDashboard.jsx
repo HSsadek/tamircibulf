@@ -115,7 +115,7 @@ export default function ServiceDashboard() {
     };
     
     fetchData();
-  }, [auth.token]); // Only depend on auth.token
+  }, [auth.token, auth.user]); // Include auth.user to satisfy React Hook dependency warning
 
   const fetchDashboardData = async () => {
     try {

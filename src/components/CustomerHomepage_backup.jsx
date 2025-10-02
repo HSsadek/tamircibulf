@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import './CustomerHomepage.css';
+import RealMap from './RealMap';
 
 function useCustomerAuth() {
   return useMemo(() => ({
@@ -28,6 +29,13 @@ export default function CustomerHomepage() {
   const [services, setServices] = useState([]);
   const [filteredServices, setFilteredServices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [pagination, setPagination] = useState({
+    current_page: 1,
+    last_page: 1,
+    per_page: 20,
+    total: 0
+  });
+  const [loadingMore, setLoadingMore] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showAIChat, setShowAIChat] = useState(false);
@@ -35,6 +43,7 @@ export default function CustomerHomepage() {
   const [chatInput, setChatInput] = useState('');
   const [showMap, setShowMap] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
+  const [locationStatus, setLocationStatus] = useState('loading'); // 'loading', 'success', 'error', 'denied'
 
   const categories = [
     { id: 'all', name: 'Tümü', icon: '🔧' },
@@ -48,33 +57,91 @@ export default function CustomerHomepage() {
   ];
 
   useEffect(() => {
-    fetchServices();
     getUserLocation();
+    // Test API immediately
+    testAPI();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    // Fetch services when filters change
+    fetchServices(1, false);
+  }, [selectedCategory, searchQuery, userLocation]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Test API function
+  const testAPI = async () => {
+    console.log('🧪 Testing API connection...');
+    try {
+      const response = await fetch('http://localhost:8000/api/services?per_page=1');
+      console.log('🧪 Test response status:', response.status);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('🧪 Test data:', data);
+      } else {
+        console.log('🧪 Test failed:', await response.text());
+      }
+    } catch (error) {
+      console.error('🧪 Test error:', error);
+    }
+  };
+
+  useEffect(() => {
     filterServices();
-  }, [services, selectedCategory, searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [services]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const getUserLocation = () => {
+    setLocationStatus('loading');
     if (navigator.geolocation) {
+      console.log('Konum izni isteniyor...');
       navigator.geolocation.getCurrentPosition(
         (position) => {
+          console.log('Konum başarıyla alındı:', position.coords);
           setUserLocation({
             lat: position.coords.latitude,
             lng: position.coords.longitude
           });
+          setLocationStatus('success');
         },
         (error) => {
-          console.log('Konum alınamadı:', error);
+          console.error('Konum alınamadı:', error);
+          let errorMessage = '';
+          switch(error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = 'Konum izni reddedildi. Lütfen tarayıcı ayarlarından konum iznini açın.';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = 'Konum bilgisi mevcut değil.';
+              break;
+            case error.TIMEOUT:
+              errorMessage = 'Konum alma işlemi zaman aşımına uğradı.';
+              break;
+            default:
+              errorMessage = 'Bilinmeyen bir hata oluştu.';
+              break;
+          }
+          console.log('Konum hatası:', errorMessage);
+          if (error.code === error.PERMISSION_DENIED) {
+            setLocationStatus('denied');
+          } else {
+            setLocationStatus('error');
+          }
+          alert(`Konum alınamadı: ${errorMessage}\n\nVarsayılan konum (İstanbul) kullanılacak.`);
+          
           // Default İstanbul koordinatları
           setUserLocation({
             lat: 41.0082,
             lng: 28.9784
           });
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 300000 // 5 dakika cache
         }
       );
     } else {
+      console.log('Geolocation desteklenmiyor');
+      setLocationStatus('error');
+      alert('Tarayıcınız konum hizmetlerini desteklemiyor. Varsayılan konum (İstanbul) kullanılacak.');
       // Default İstanbul koordinatları
       setUserLocation({
         lat: 41.0082,
@@ -83,79 +150,117 @@ export default function CustomerHomepage() {
     }
   };
 
-  const fetchServices = async () => {
+  const fetchServices = async (page = 1, append = false) => {
     try {
-      setLoading(true);
-      const res = await fetch('http://localhost:8000/api/services', {
+      if (!append) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      // Simplified API call first
+      const apiUrl = `http://localhost:8000/api/services?per_page=10`;
+      console.log('🔍 Fetching from:', apiUrl);
+      
+      const res = await fetch(apiUrl, {
+        method: 'GET',
         headers: {
           'Accept': 'application/json',
-          ...(auth.token && { 'Authorization': `Bearer ${auth.token}` })
+          'Content-Type': 'application/json'
         }
       });
       
+      console.log('📡 Response status:', res.status);
+      console.log('📡 Response ok:', res.ok);
+      
       if (res.ok) {
         const data = await res.json();
-        setServices(data?.data || data?.services || []);
+        console.log('✅ API response data:', data);
+        console.log('📊 Data type:', typeof data);
+        console.log('🔑 Data keys:', Object.keys(data || {}));
+        console.log('📋 Data.data length:', data?.data?.length || 0);
+        
+        // API'den gelen verileri kullan, koordinat bilgileri dahil
+        const servicesWithCoords = (data?.data || []).map((service, index) => ({
+          ...service,
+          // Unique ID garantisi
+          id: service.id || `service-${index}`,
+          // API'den gelen latitude/longitude'u lat/lng'ye çevir
+          lat: service.latitude || service.lat,
+          lng: service.longitude || service.lng,
+          // Kategori mapping'i
+          category: service.service_type
+        }));
+        
+        console.log('📋 Services with coordinates:', servicesWithCoords);
+        console.log('🔍 Service IDs:', servicesWithCoords.map(s => s.id));
+        
+        // Duplicate ID kontrolü
+        const ids = servicesWithCoords.map(s => s.id);
+        const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);
+        if (duplicateIds.length > 0) {
+          console.warn('⚠️ Duplicate service IDs found:', duplicateIds);
+        }
+        
+        if (append) {
+          // Append new services to existing ones, avoid duplicates
+          setServices(prev => {
+            const existingIds = prev.map(s => s.id);
+            const newServices = servicesWithCoords.filter(s => !existingIds.includes(s.id));
+            return [...prev, ...newServices];
+          });
+        } else {
+          // Replace services, remove duplicates
+          const uniqueServices = servicesWithCoords.filter((service, index, self) => 
+            index === self.findIndex(s => s.id === service.id)
+          );
+          console.log('🔧 Unique services:', uniqueServices.length, 'from', servicesWithCoords.length);
+          setServices(uniqueServices);
+        }
+
+        // Update pagination info
+        if (data.pagination) {
+          setPagination(data.pagination);
+        }
       } else {
-        // Mock data for demo
-        setServices([
-          {
-            id: 1,
-            name: 'Ahmet Tesisatçı',
-            category: 'plumbing',
-            rating: 4.8,
-            reviews: 127,
-            distance: '0.5 km',
-            price: '₺150-300',
-            image: '🚰',
-            description: 'Profesyonel tesisatçı hizmeti'
-          },
-          {
-            id: 2,
-            name: 'Mehmet Elektrikçi',
-            category: 'electrical',
-            rating: 4.9,
-            reviews: 89,
-            distance: '1.2 km',
-            price: '₺200-400',
-            image: '⚡',
-            description: 'Elektrik arıza ve montaj'
-          },
-          {
-            id: 3,
-            name: 'Fatma Temizlik',
-            category: 'cleaning',
-            rating: 4.7,
-            reviews: 156,
-            distance: '0.8 km',
-            price: '₺100-250',
-            image: '🧹',
-            description: 'Ev ve ofis temizlik hizmeti'
-          }
-        ]);
+        console.log('❌ API failed with status:', res.status);
+        const errorText = await res.text();
+        console.log('❌ Error response:', errorText);
+        
+        // Try to parse error as JSON
+        try {
+          const errorJson = JSON.parse(errorText);
+          console.log('❌ Error JSON:', errorJson);
+        } catch (e) {
+          console.log('❌ Error is not JSON');
+        }
+        
+        if (!append) {
+          setServices([]);
+        }
       }
     } catch (err) {
-      console.error('Services fetch error:', err);
+      console.error('💥 Services fetch error:', err);
+      console.error('💥 Error details:', err.message);
+      console.error('💥 Error stack:', err.stack);
+      if (!append) {
+        setServices([]);
+      }
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
   const filterServices = () => {
-    let filtered = services;
-    
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(service => service.category === selectedCategory);
+    // Since filtering is now done on backend, just set services as filtered
+    setFilteredServices(services);
+  };
+
+  const loadMoreServices = () => {
+    if (pagination.current_page < pagination.last_page && !loadingMore) {
+      fetchServices(pagination.current_page + 1, true);
     }
-    
-    if (searchQuery) {
-      filtered = filtered.filter(service => 
-        service.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        service.description.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-    
-    setFilteredServices(filtered);
   };
 
   const handleServiceRequest = (serviceId) => {
@@ -275,60 +380,39 @@ export default function CustomerHomepage() {
             <div className="customer-loading">Hizmetler yükleniyor...</div>
           ) : showMap ? (
             <div className="customer-map-container">
-              {userLocation ? (
-                <div className="map-wrapper">
-                  <div className="map-placeholder">
-                    <div className="map-header">
-                      <h4>🗺️ Servis Sağlayıcıları Haritası</h4>
-                      <p>Konumunuz: {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}</p>
-                    </div>
-                    
-                    <div className="map-content">
-                      <div className="map-center-marker">
-                        <div className="user-marker">📍 Sen</div>
-                      </div>
-                      
-                      <div className="service-markers">
-                        {filteredServices.map((service, index) => (
-                          <div 
-                            key={service.id} 
-                            className="service-marker"
-                            style={{
-                              top: `${20 + (index % 3) * 25}%`,
-                              left: `${30 + (index % 4) * 20}%`
-                            }}
-                            onClick={() => handleServiceRequest(service.id)}
-                          >
-                            <div className="marker-icon">{service.image}</div>
-                            <div className="marker-info">
-                              <strong>{service.name}</strong>
-                              <div>⭐ {service.rating}</div>
-                              <div>{service.distance}</div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      
-                      <div className="map-controls">
-                        <button className="map-control-btn">🔍 Yakınlaştır</button>
-                        <button className="map-control-btn">🔍 Uzaklaştır</button>
-                        <button className="map-control-btn">📍 Konumum</button>
-                      </div>
-                    </div>
-                    
-                    <div className="map-footer">
-                      <p>💡 Gerçek harita entegrasyonu için Google Maps API gereklidir</p>
-                    </div>
+              <div className="map-header" style={{ background: 'white', padding: '15px', borderRadius: '16px 16px 0 0', borderBottom: '1px solid #e0e0e0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h4 style={{ margin: '0 0 8px', color: '#333', fontSize: '18px' }}>🗺️ Servis Sağlayıcıları Haritası</h4>
+                    {userLocation && (
+                      <p style={{ margin: '0', color: '#666', fontSize: '14px' }}>
+                        Konumunuz: {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
+                      </p>
+                    )}
                   </div>
-                </div>
-              ) : (
-                <div className="location-loading">
-                  <p>Konum bilgisi alınıyor...</p>
+                  <button 
+                    onClick={getUserLocation}
+                    style={{
+                      background: locationStatus === 'success' ? '#4caf50' : locationStatus === 'denied' ? '#f44336' : '#ff9800',
+                      color: 'white',
+                      border: 'none',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                    title="Konumumu yenile"
+                    disabled={locationStatus === 'loading'}
+                  >
+                    {locationStatus === 'loading' ? '⏳ Alınıyor...' : '📍 Konumum'}
+                  </button>
                 </div>
               )}
-            </div>
-          ) : (
-            <div className="customer-services-grid">
+
+          <div className="customer-services-grid">
               {filteredServices.map(service => (
                 <div key={service.id} className="customer-service-card">
                   <div className="customer-service-header">
@@ -363,11 +447,33 @@ export default function CustomerHomepage() {
             </div>
           )}
           
+          {/* Load More Button */}
+          {!loading && !showMap && pagination.current_page < pagination.last_page && (
+            <div style={{ textAlign: 'center', marginTop: '30px' }}>
+              <button 
+                className="customer-service-btn primary"
+                onClick={loadMoreServices}
+                disabled={loadingMore}
+                style={{
+                  padding: '12px 30px',
+                  fontSize: '16px',
+                  minWidth: '200px'
+                }}
+              >
+                {loadingMore ? '⏳ Yükleniyor...' : `Daha Fazla Göster (${pagination.total - services.length} kaldı)`}
+              </button>
+            </div>
+          )}
+          
           {!loading && filteredServices.length === 0 && (
             <div className="customer-no-results">
               <p>Aradığınız kriterlere uygun hizmet bulunamadı.</p>
+              <p style={{ fontSize: '14px', color: '#666', marginTop: '10px' }}>
+                Toplam {pagination.total} servis mevcut. Filtreleri değiştirmeyi deneyin.
+              </p>
             </div>
           )}
+        </div>
         </div>
       </section>
 

@@ -11,3 +11,13 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Global input styles to ensure text visibility */
+input, textarea, select {
+  color: #333 !important;
+  background: white !important;
+}
+
+input::placeholder, textarea::placeholder {
+  color: #999 !important;
+}

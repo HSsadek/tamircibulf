@@ -1,11 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import MapView from './MapView';
 import Filters from './Filters';
 import ServiceList from './ServiceList';
-import mockServices from './mockServices';
 import { haversineKm } from './utils';
 import CustomerDashboard from '../dashboard/CustomerDashboard';
 import ServiceDashboard from '../dashboard/ServiceDashboard';
+import RealMap from '../components/RealMap';
 
 export default function MainApp() {
   // Role from hash param (no setter needed)
@@ -37,43 +36,164 @@ export default function MainApp() {
   const [appliance, setAppliance] = useState('');
   const [sortBy, setSortBy] = useState('distance'); // 'distance' | 'rating'
   const [focusedServiceId, setFocusedServiceId] = useState(null);
+  
+  // Services data
+  const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [pagination, setPagination] = useState({
+    current_page: 1,
+    last_page: 1,
+    per_page: 20,
+    total: 0
+  });
 
   // Geolocation
   const [userLocation, setUserLocation] = useState(null);
-  useEffect(() => {
+  
+  const getUserLocation = () => {
     if (!navigator.geolocation) {
-      // fallback to Ankara center
-      setUserLocation({ lat: 39.92077, lng: 32.85411 });
+      console.log('Geolocation desteklenmiyor - MainApp');
+      alert('Tarayıcınız konum hizmetlerini desteklemiyor.');
+      setUserLocation({ lat: 41.0082, lng: 28.9784 }); // İstanbul
       return;
     }
+    
+    console.log('Konum izni isteniyor - MainApp...');
     navigator.geolocation.getCurrentPosition(
       (pos) => {
+        console.log('Konum başarıyla alındı - MainApp:', pos.coords);
         setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
       },
-      () => setUserLocation({ lat: 41.015137, lng: 28.97953 }) // fallback to İstanbul
+      (error) => {
+        console.error('Konum alınamadı - MainApp:', error);
+        let errorMessage = '';
+        switch(error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = 'Konum izni reddedildi. Lütfen tarayıcı ayarlarından konum iznini açın.';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = 'Konum bilgisi mevcut değil.';
+            break;
+          case error.TIMEOUT:
+            errorMessage = 'Konum alma işlemi zaman aşımına uğradı.';
+            break;
+          default:
+            errorMessage = 'Bilinmeyen bir hata oluştu.';
+            break;
+        }
+        alert(`Konum alınamadı: ${errorMessage}\n\nVarsayılan konum (İstanbul) kullanılacak.`);
+        setUserLocation({ lat: 41.0082, lng: 28.9784 }); // İstanbul fallback
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 300000 // 5 dakika cache
+      }
     );
+  };
+  
+  // Fetch services from API with location-based filtering
+  const fetchServices = async () => {
+    try {
+      setLoading(true);
+      
+      // Build query parameters
+      const params = new URLSearchParams({
+        per_page: '50' // Get more for MainApp since it shows map + list
+      });
+
+      // Add location-based filtering if available
+      if (userLocation) {
+        params.append('lat', userLocation.lat.toString());
+        params.append('lng', userLocation.lng.toString());
+        params.append('radius', '100'); // 100km radius for MainApp
+      }
+
+      // Add filters
+      if (city) {
+        params.append('city', city);
+      }
+      if (district) {
+        params.append('district', district);
+      }
+      if (appliance && appliance !== 'all') {
+        params.append('service_type', appliance);
+      }
+
+      const res = await fetch(`http://localhost:8000/api/services?${params}`, {
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        console.log('MainApp API response:', data);
+        
+        // Transform API data to match expected format
+        const transformedServices = (data?.data || []).map((service, index) => ({
+          id: service.id || `mainapp-service-${index}`,
+          name: service.name,
+          lat: service.latitude || service.lat,
+          lng: service.longitude || service.lng,
+          city: service.city,
+          district: service.district,
+          appliances: [service.service_type_name || service.service_type],
+          rating: service.rating || 0,
+          service_type: service.service_type,
+          description: service.description,
+          price: service.price,
+          reviews: service.reviews || service.total_reviews || 0,
+          distanceKm: service.distanceKm
+        }));
+        
+        console.log('Transformed services:', transformedServices);
+        setServices(transformedServices);
+        
+        // Update pagination info
+        if (data.pagination) {
+          setPagination(data.pagination);
+        }
+      } else {
+        console.log('API failed, no services available');
+        setServices([]);
+      }
+    } catch (err) {
+      console.error('Services fetch error:', err);
+      setServices([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    getUserLocation();
   }, []);
 
+  useEffect(() => {
+    fetchServices();
+  }, [userLocation, city, district, appliance]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Derived options from data
-  const cities = useMemo(() => Array.from(new Set(mockServices.map((s) => s.city))).sort(), []);
+  const cities = useMemo(() => Array.from(new Set(services.map((s) => s.city))).sort(), [services]);
   const districtsAll = useMemo(
-    () => Array.from(new Set(mockServices.map((s) => `${s.city}::${s.district}`))).map((k) => k.split('::')[1]),
-    []
+    () => Array.from(new Set(services.map((s) => `${s.city}::${s.district}`))).map((k) => k.split('::')[1]),
+    [services]
   );
   const appliancesAll = useMemo(() => {
     const set = new Set();
-    mockServices.forEach((s) => (s.appliances || []).forEach((a) => set.add(a)));
+    services.forEach((s) => (s.appliances || []).forEach((a) => set.add(a)));
     return Array.from(set).sort();
-  }, []);
+  }, [services]);
 
   const districts = useMemo(() => {
     if (!city) return Array.from(new Set(districtsAll)).sort();
-    return Array.from(new Set(mockServices.filter((s) => s.city === city).map((s) => s.district))).sort();
-  }, [city, districtsAll]);
+    return Array.from(new Set(services.filter((s) => s.city === city).map((s) => s.district))).sort();
+  }, [city, districtsAll, services]);
 
   // Filter and compute distances
   const computed = useMemo(() => {
-    const base = mockServices.filter((s) => {
+    const base = services.filter((s) => {
       const okCity = city ? s.city === city : true;
       const okDistrict = district ? s.district === district : true;
       const okAppliance = appliance ? (s.appliances || []).includes(appliance) : true;
@@ -95,7 +215,7 @@ export default function MainApp() {
     });
 
     return sorted;
-  }, [city, district, appliance, userLocation, sortBy]);
+  }, [city, district, appliance, userLocation, sortBy, services]);
 
   // Contact handler (demo)
   const handleContact = (svc) => {
@@ -152,6 +272,13 @@ export default function MainApp() {
       <div className="mb-4">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Yakındaki Teknik Servisler</h1>
         <p className="text-gray-500 text-sm md:text-base">Konumunuza göre servisleri keşfedin, filtreleyin ve iletişime geçin.</p>
+        {loading && <p className="text-blue-600 text-sm">Servisler yükleniyor...</p>}
+        {!loading && pagination.total > 0 && (
+          <p className="text-gray-600 text-sm mt-2">
+            📊 Toplam {pagination.total} servis bulundu, {services.length} tanesi gösteriliyor
+            {userLocation && <span className="text-green-600"> • Konumunuza göre sıralandı</span>}
+          </p>
+        )}
       </div>
 
       {/* Filters */}
@@ -169,7 +296,21 @@ export default function MainApp() {
 
       {/* Map */}
       <div className="mb-4">
-        <MapView userLocation={userLocation} services={computed} focusedServiceId={focusedServiceId} />
+        <div className="relative w-full rounded-xl overflow-hidden shadow-lg ring-1 ring-gray-200 bg-white">
+          <RealMap 
+            userLocation={userLocation} 
+            services={computed} 
+            focusedServiceId={focusedServiceId}
+            height="450px"
+            onLocationRequest={getUserLocation}
+          />
+          {/* Distance legend */}
+          <div className="absolute right-3 top-3 bg-white/90 backdrop-blur rounded-lg border border-gray-200 shadow px-3 py-2 text-xs text-gray-700" style={{ zIndex: 1000 }}>
+            <div className="font-semibold mb-1 text-gray-900">Servis Bilgileri</div>
+            <div className="flex items-center gap-2">🟢 Kullanıcı Konumu</div>
+            <div className="flex items-center gap-2">⭐ Servis Sağlayıcıları</div>
+          </div>
+        </div>
       </div>
 
       {/* List */}

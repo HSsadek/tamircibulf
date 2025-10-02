@@ -69,8 +69,13 @@ export default function CustomerDashboard() {
         district: auth.user.customer?.district || ''
       });
     }
-    fetchMyRequests();
-  }, [auth.user, fetchMyRequests]);
+  }, [auth.user]);
+
+  useEffect(() => {
+    if (activeTab === 'requests') {
+      fetchMyRequests();
+    }
+  }, [activeTab, fetchMyRequests]);
 
   const updateProfile = async (e) => {
     e.preventDefault();

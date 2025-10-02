@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -116,39 +116,60 @@ const createServiceIcon = (serviceType, rating) => {
   });
 };
 
-// MapController component to handle map updates
-function MapController({ center, zoom }) {
-  const map = useMap();
-  
-  useEffect(() => {
-    if (center && map && typeof map.setView === 'function' && map.getContainer() && map._loaded) {
-      try {
-        map.setView(center, zoom);
-      } catch (error) {
-        console.warn('MapController setView error:', error);
-      }
-    }
-  }, [map, center, zoom]);
-  
-  return null;
-}
-
-export default function RealMap({ userLocation, services, focusedServiceId, className = "", height = "400px", onLocationRequest }) {
+export default function RealMap({ userLocation, services, focusedServiceId, className = "", height = "400px", onLocationRequest, onLocationSearch }) {
   const mapRef = useRef(null);
   const [selectedService, setSelectedService] = useState(null);
   const [showServiceModal, setShowServiceModal] = useState(false);
-  const [mapReady, setMapReady] = useState(false);
+  const [mapReady, setMapReady] = useState(true); // Start ready
   const [mapError, setMapError] = useState(null);
   const [mapInstance, setMapInstance] = useState(null);
+  // Zoom tracking for dynamic loading
   
   // Default center (Istanbul)
   const defaultCenter = [41.0082, 28.9784];
   const mapCenter = userLocation ? [userLocation.lat, userLocation.lng] : defaultCenter;
-  
   // Safe services array
   const safeServices = Array.isArray(services) ? services.filter(s => 
     s && typeof s === 'object' && (s.lat || s.latitude) && (s.lng || s.longitude)
   ) : [];
+
+  // Log services changes for debugging
+  useEffect(() => {
+    console.log('🗺️ RealMap services updated:', safeServices.length, 'services');
+  }, [safeServices.length]);
+
+  // Handle map clicks for location-based search
+  useEffect(() => {
+    if (mapInstance && onLocationSearch) {
+      const handleMapClick = (e) => {
+        const { lat, lng } = e.latlng;
+        console.log('🗺️ Map clicked at:', { lat, lng });
+        
+        // Notify parent component about location search
+        onLocationSearch({
+          lat: lat,
+          lng: lng,
+          radius: 20 // Fixed 20km radius for searches
+        });
+      };
+
+      mapInstance.on('click', handleMapClick);
+      
+      return () => {
+        mapInstance.off('click', handleMapClick);
+      };
+    }
+  }, [mapInstance, onLocationSearch]);
+
+  // Reset states when userLocation changes to prevent stale states
+  useEffect(() => {
+    if (userLocation) {
+      console.log('🗺️ User location updated, keeping map ready');
+      setMapError(null);
+      setSelectedService(null);
+      setShowServiceModal(false);
+    }
+  }, [userLocation]);
 
   // Cleanup function
   useEffect(() => {
@@ -163,8 +184,8 @@ export default function RealMap({ userLocation, services, focusedServiceId, clas
     };
   }, [mapInstance]);
   
-  // Error boundary for map
-  if (mapError) {
+  // Disable error state for now - always show map
+  if (false && mapError && !mapReady) {
     return (
       <div className={`real-map-container ${className}`} style={{ height, width: '100%', position: 'relative' }}>
         <div style={{
@@ -178,9 +199,9 @@ export default function RealMap({ userLocation, services, focusedServiceId, clas
           borderRadius: '12px'
         }}>
           <div style={{ fontSize: '48px', marginBottom: '16px' }}>🗺️</div>
-          <div style={{ fontSize: '18px', marginBottom: '8px', fontWeight: 'bold' }}>Harita Geçici Olarak Kullanılamıyor</div>
+          <div style={{ fontSize: '18px', marginBottom: '8px', fontWeight: 'bold' }}>Harita Yükleniyor</div>
           <div style={{ fontSize: '14px', marginBottom: '16px', textAlign: 'center', opacity: 0.9 }}>
-            Servisler liste halinde görüntüleniyor
+            Harita yüklenirken servisleri liste halinde görüntüleyebilirsiniz
           </div>
           <div style={{ 
             background: 'rgba(255,255,255,0.2)', 
@@ -199,57 +220,44 @@ export default function RealMap({ userLocation, services, focusedServiceId, clas
   
   return (
     <div className={`real-map-container ${className}`} style={{ height, width: '100%', position: 'relative' }}>
-      {/* Loading indicator */}
-      {!mapReady && (
-        <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          zIndex: 1000,
-          background: 'white',
-          padding: '20px',
-          borderRadius: '8px',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
-        }}>
-          🗺️ Harita yükleniyor...
-        </div>
-      )}
+      {/* Loading indicator - disabled */}
       
       <MapContainer
         center={mapCenter}
         zoom={13}
         style={{ height: '100%', width: '100%' }}
         ref={mapRef}
+        key={userLocation ? `map-${userLocation.lat.toFixed(3)}-${userLocation.lng.toFixed(3)}` : 'map-default'}
         whenCreated={(map) => {
           try {
             console.log('🗺️ Map created successfully');
             setMapInstance(map);
             
-            // Set ready immediately, then verify
+            // Set ready immediately - don't wait
             setMapReady(true);
-            console.log('🗺️ Map ready');
+            setMapError(null);
+            console.log('🗺️ Map set to ready immediately');
             
-            // Timeout fallback - if map doesn't work after 5 seconds, show error
-            setTimeout(() => {
-              if (!map || !map.getContainer()) {
-                console.error('Map timeout - container not found');
-                setMapError('Harita yükleme zaman aşımı');
-              }
-            }, 5000);
+            // Set cursor to crosshair for location selection
+            const mapContainer = map.getContainer();
+            mapContainer.style.cursor = 'crosshair';
+            console.log('🗺️ RealMap: Map cursor set to crosshair for location selection');
             
           } catch (error) {
             console.error('Map creation error:', error);
-            setMapError(error.message);
+            setMapReady(true); // Still allow map to show
           }
         }}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          eventHandlers={{
+            loading: () => console.log('🗺️ Tiles loading...'),
+            load: () => console.log('🗺️ Tiles loaded successfully'),
+            tileerror: (e) => console.warn('🗺️ Tile error:', e)
+          }}
         />
-        
-        {mapReady && <MapController center={mapCenter} zoom={13} />}
         
         {/* User location marker */}
         {mapReady && userLocation && (
@@ -433,7 +441,14 @@ export default function RealMap({ userLocation, services, focusedServiceId, clas
       {/* Location button overlay */}
       {onLocationRequest && (
         <button
-          onClick={onLocationRequest}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🗺️ Location button clicked');
+            if (typeof onLocationRequest === 'function') {
+              onLocationRequest();
+            }
+          }}
           style={{
             position: 'absolute',
             bottom: '15px',

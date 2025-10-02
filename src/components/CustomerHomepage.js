@@ -47,6 +47,7 @@ export default function CustomerHomepage() {
   const [showMap, setShowMap] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
   const [locationStatus, setLocationStatus] = useState('loading'); // 'loading', 'success', 'error', 'denied'
+  const [mapZoomData, setMapZoomData] = useState({ zoom: 13, radius: 20 });
 
   const categories = [
     { id: 'all', name: 'Tümü', icon: '🔧' },
@@ -61,35 +62,42 @@ export default function CustomerHomepage() {
 
   useEffect(() => {
     getUserLocation();
-    // Test API immediately
-    testAPI();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Initial fetch when user location is set
   useEffect(() => {
-    // Fetch services when filters change
-    fetchServices(1, false);
-  }, [selectedCategory, searchQuery, userLocation]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Test API function
-  const testAPI = async () => {
-    console.log('🧪 Testing API connection...');
-    try {
-      const response = await fetch('http://localhost:8000/api/services?per_page=1');
-      console.log('🧪 Test response status:', response.status);
-      if (response.ok) {
-        const data = await response.json();
-        console.log('🧪 Test data:', data);
-      } else {
-        console.log('🧪 Test failed:', await response.text());
-      }
-    } catch (error) {
-      console.error('🧪 Test error:', error);
+    if (userLocation) {
+      console.log('🗺️ CustomerHomepage: User location set, fetching initial services');
+      fetchServices(1, false);
     }
-  };
+  }, [userLocation]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    // Refetch when any filter changes including zoom
+    fetchServices(1, false);
+  }, [userLocation, selectedCategory, searchQuery, mapZoomData.radius]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     filterServices();
   }, [services]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Handle location search from map clicks
+  const handleLocationSearch = (locationData) => {
+    console.log('🗺️ CustomerHomepage: Location search requested:', locationData);
+    
+    // Update search location (different from user location)
+    const searchLocation = {
+      lat: locationData.lat,
+      lng: locationData.lng
+    };
+    
+    // Temporarily update userLocation for search
+    setUserLocation(searchLocation);
+    setMapZoomData({ zoom: 13, radius: locationData.radius });
+    
+    // Show loading indicator
+    setLoading(true);
+  };
 
   const getUserLocation = () => {
     setLocationStatus('loading');
@@ -161,9 +169,27 @@ export default function CustomerHomepage() {
         setLoadingMore(true);
       }
 
-      // Simplified API call first
-      const apiUrl = `http://localhost:8000/api/services?per_page=10`;
-      console.log('🔍 Fetching from:', apiUrl);
+      // Build query parameters
+      const params = new URLSearchParams({
+        per_page: '50' // Get more for better map display
+      });
+
+      // Add location-based filtering if available
+      if (userLocation) {
+        params.append('lat', userLocation.lat.toString());
+        params.append('lng', userLocation.lng.toString());
+        params.append('radius', mapZoomData.radius.toString()); // Dynamic radius based on zoom
+        console.log(`🗺️ CustomerHomepage: Fetching services with radius ${mapZoomData.radius}km from location ${userLocation.lat}, ${userLocation.lng}`);
+      }
+
+      // Add filters
+      if (selectedCategory && selectedCategory !== 'all') {
+        params.append('service_type', selectedCategory);
+      }
+
+      const apiUrl = `http://localhost:8000/api/services?${params.toString()}`;
+
+      console.log('🔍 API URL:', apiUrl);
       
       const res = await fetch(apiUrl, {
         method: 'GET',
@@ -197,6 +223,8 @@ export default function CustomerHomepage() {
         
         console.log('📋 Services with coordinates:', servicesWithCoords);
         console.log('🔍 Service IDs:', servicesWithCoords.map(s => s.id));
+        console.log('🏙️ Cities found:', [...new Set(servicesWithCoords.map(s => s.city))]);
+        console.log('📍 Service locations:', servicesWithCoords.map(s => `${s.name} (${s.city}, ${s.district})`));
         
         // Duplicate ID kontrolü
         const ids = servicesWithCoords.map(s => s.id);
@@ -382,36 +410,48 @@ export default function CustomerHomepage() {
           {loading ? (
             <div className="customer-loading">Hizmetler yükleniyor...</div>
           ) : showMap ? (
-            <div style={{ 
-              height: '500px',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              flexDirection: 'column',
-              position: 'relative'
-            }}>
-              <div style={{ fontSize: '48px', marginBottom: '16px' }}>🗺️</div>
-              <div style={{ fontSize: '18px', marginBottom: '8px', fontWeight: 'bold' }}>Harita Geliştiriliyor</div>
-              <div style={{ fontSize: '14px', marginBottom: '16px', textAlign: 'center', opacity: 0.9 }}>
-                Şimdilik liste görünümünü kullanabilirsiniz
-              </div>
+            <div style={{ position: 'relative' }}>
+              <RealMap 
+                userLocation={userLocation} 
+                services={filteredServices} 
+                height="500px"
+                onLocationRequest={() => {
+                  if (navigator.geolocation) {
+                    setLocationStatus('loading');
+                    navigator.geolocation.getCurrentPosition(
+                      (pos) => {
+                        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                        setLocationStatus('success');
+                      },
+                      (error) => {
+                        console.error('Konum alınamadı:', error);
+                        setLocationStatus('error');
+                        setUserLocation({ lat: 41.0082, lng: 28.9784 }); // Istanbul fallback
+                      }
+                    );
+                  }
+                }}
+                onLocationSearch={handleLocationSearch}
+              />
               <button
                 onClick={() => setShowMap(false)}
                 style={{
-                  background: 'rgba(255,255,255,0.2)',
-                  border: '1px solid rgba(255,255,255,0.3)',
+                  position: 'absolute',
+                  top: '15px',
+                  left: '15px',
+                  background: 'white',
+                  border: '2px solid #667eea',
                   borderRadius: '8px',
-                  padding: '12px 24px',
-                  color: 'white',
+                  padding: '10px 16px',
+                  color: '#667eea',
                   cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: 'bold'
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                  zIndex: 9999
                 }}
               >
-                📋 Liste Görünümüne Geç
+                📋 Liste Görünümü
               </button>
             </div>
           ) : (

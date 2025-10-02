@@ -49,8 +49,11 @@ export default function MainApp() {
 
   // Geolocation
   const [userLocation, setUserLocation] = useState(null);
+  const [mapZoomData, setMapZoomData] = useState({ zoom: 13, radius: 20 });
   
   const getUserLocation = () => {
+    console.log('🗺️ MainApp: getUserLocation called');
+    
     if (!navigator.geolocation) {
       console.log('Geolocation desteklenmiyor - MainApp');
       alert('Tarayıcınız konum hizmetlerini desteklemiyor.');
@@ -62,7 +65,9 @@ export default function MainApp() {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         console.log('Konum başarıyla alındı - MainApp:', pos.coords);
-        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        const newLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setUserLocation(newLocation);
+        console.log('🗺️ MainApp: Location updated to:', newLocation);
       },
       (error) => {
         console.error('Konum alınamadı - MainApp:', error);
@@ -82,11 +87,13 @@ export default function MainApp() {
             break;
         }
         alert(`Konum alınamadı: ${errorMessage}\n\nVarsayılan konum (İstanbul) kullanılacak.`);
-        setUserLocation({ lat: 41.0082, lng: 28.9784 }); // İstanbul fallback
+        const fallbackLocation = { lat: 41.0082, lng: 28.9784 };
+        setUserLocation(fallbackLocation);
+        console.log('🗺️ MainApp: Using fallback location:', fallbackLocation);
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
+        timeout: 15000, // Increased timeout
         maximumAge: 300000 // 5 dakika cache
       }
     );
@@ -106,7 +113,8 @@ export default function MainApp() {
       if (userLocation) {
         params.append('lat', userLocation.lat.toString());
         params.append('lng', userLocation.lng.toString());
-        params.append('radius', '100'); // 100km radius for MainApp
+        params.append('radius', mapZoomData.radius.toString()); // Dynamic radius based on zoom
+        console.log(`🗺️ MainApp: Fetching services with radius ${mapZoomData.radius}km from location ${userLocation.lat}, ${userLocation.lng}`);
       }
 
       // Add filters
@@ -114,13 +122,15 @@ export default function MainApp() {
         params.append('city', city);
       }
       if (district) {
-        params.append('district', district);
       }
       if (appliance && appliance !== 'all') {
         params.append('service_type', appliance);
       }
 
-      const res = await fetch(`http://localhost:8000/api/services?${params}`, {
+      const url = `http://localhost:8000/api/services?${params.toString()}`;
+      console.log('MainApp: API URL:', url);
+      console.log('MainApp: Query params:', Object.fromEntries(params));
+      const res = await fetch(url, {
         headers: {
           'Accept': 'application/json'
         }
@@ -170,9 +180,32 @@ export default function MainApp() {
     getUserLocation();
   }, []);
 
+  // Initial fetch when user location is set
+  useEffect(() => {
+    if (userLocation) {
+      console.log('🗺️ MainApp: User location set, fetching initial services');
+      fetchServices();
+    }
+  }, [userLocation]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     fetchServices();
-  }, [userLocation, city, district, appliance]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [userLocation, city, district, appliance, mapZoomData.radius]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Handle location search from map clicks
+  const handleLocationSearch = (locationData) => {
+    console.log('🗺️ MainApp: Location search requested:', locationData);
+    
+    // Update search location
+    const searchLocation = {
+      lat: locationData.lat,
+      lng: locationData.lng
+    };
+    
+    // Update userLocation for search
+    setUserLocation(searchLocation);
+    setMapZoomData({ zoom: 13, radius: locationData.radius });
+  };
 
   // Derived options from data
   const cities = useMemo(() => Array.from(new Set(services.map((s) => s.city))).sort(), [services]);
@@ -303,12 +336,22 @@ export default function MainApp() {
             focusedServiceId={focusedServiceId}
             height="450px"
             onLocationRequest={getUserLocation}
+            onLocationSearch={handleLocationSearch}
           />
-          {/* Distance legend */}
+          {/* Filter and legend info */}
           <div className="absolute right-3 top-3 bg-white/90 backdrop-blur rounded-lg border border-gray-200 shadow px-3 py-2 text-xs text-gray-700" style={{ zIndex: 1000 }}>
-            <div className="font-semibold mb-1 text-gray-900">Servis Bilgileri</div>
-            <div className="flex items-center gap-2">🟢 Kullanıcı Konumu</div>
-            <div className="flex items-center gap-2">⭐ Servis Sağlayıcıları</div>
+            <div className="font-semibold mb-1 text-gray-900">Harita Bilgileri</div>
+            <div className="flex items-center gap-2 mb-1">🟢 Konumunuz</div>
+            <div className="flex items-center gap-2 mb-1">⭐ Servis Sağlayıcıları ({computed.length})</div>
+            <div className="flex items-center gap-2 mb-1 text-green-600">🔍 Arama Yarıçapı: {mapZoomData.radius}km</div>
+            {(city || district || appliance) && (
+              <div className="text-xs text-blue-600 mt-2 pt-2 border-t border-gray-200">
+                <div className="font-semibold">Aktif Filtreler:</div>
+                {city && <div>📍 {city}</div>}
+                {district && <div>🏘️ {district}</div>}
+                {appliance && <div>🔧 {appliance}</div>}
+              </div>
+            )}
           </div>
         </div>
       </div>

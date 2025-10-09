@@ -410,9 +410,16 @@ export default function CustomerHomepage() {
                     {locationStatus === 'loading' ? '⏳ Alınıyor...' : '📍 Konumum'}
                   </button>
                 </div>
-              )}
+              </div>
 
-          <div className="customer-services-grid">
+              <RealMap 
+                services={filteredServices}
+                userLocation={userLocation}
+                onServiceSelect={handleServiceRequest}
+              />
+            </div>
+          ) : (
+            <div className="customer-services-grid">
               {filteredServices.map(service => (
                 <div key={service.id} className="customer-service-card">
                   <div className="customer-service-header">
@@ -473,7 +480,6 @@ export default function CustomerHomepage() {
               </p>
             </div>
           )}
-        </div>
         </div>
       </section>
 

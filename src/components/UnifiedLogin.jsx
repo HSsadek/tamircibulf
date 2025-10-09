@@ -5,7 +5,7 @@ export default function UnifiedLogin() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loginType, setLoginType] = useState('phone'); // 'phone' or 'email'
+  const loginType = 'email'; // Only email login
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -148,33 +148,13 @@ export default function UnifiedLogin() {
           </div>
           
           <form onSubmit={onSubmit} autoComplete="off">
-            {/* Login Type Toggle */}
-            <div className="login-type-toggle">
-              <button 
-                type="button"
-                className={`toggle-btn ${loginType === 'phone' ? 'active' : ''}`}
-                onClick={() => setLoginType('phone')}
-              >
-                📱 Telefon
-              </button>
-              <button 
-                type="button"
-                className={`toggle-btn ${loginType === 'email' ? 'active' : ''}`}
-                onClick={() => setLoginType('email')}
-              >
-                📧 E-posta
-              </button>
-            </div>
-
             <div className="unified-form-group">
-              <label className="unified-form-label">
-                {loginType === 'phone' ? 'Telefon Numarası' : 'E-posta Adresi'}
-              </label>
+              <label className="unified-form-label">E-posta Adresi</label>
               <input 
                 name="identifier" 
-                type={loginType === 'phone' ? 'tel' : 'email'}
+                type="email"
                 className="unified-form-input"
-                placeholder={loginType === 'phone' ? '0555 123 45 67' : 'ornek@email.com'} 
+                placeholder="ornek@email.com" 
                 required 
               />
             </div>

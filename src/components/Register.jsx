@@ -7,7 +7,7 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loginType, setLoginType] = useState('phone'); // 'phone' or 'email'
+  const loginType = 'email'; // Only email registration
 
   const roles = [
     {
@@ -163,24 +163,6 @@ export default function Register() {
               </div>
               
               <form onSubmit={handleSubmit} autoComplete="off">
-                {/* Login Type Toggle */}
-                <div className="login-type-toggle">
-                  <button 
-                    type="button"
-                    className={`toggle-btn ${loginType === 'phone' ? 'active' : ''}`}
-                    onClick={() => setLoginType('phone')}
-                  >
-                    📱 Telefon
-                  </button>
-                  <button 
-                    type="button"
-                    className={`toggle-btn ${loginType === 'email' ? 'active' : ''}`}
-                    onClick={() => setLoginType('email')}
-                  >
-                    📧 E-posta
-                  </button>
-                </div>
-
                 <div className="register-form-group">
                   <label className="register-form-label">Ad Soyad</label>
                   <input 
@@ -193,14 +175,12 @@ export default function Register() {
                 </div>
 
                 <div className="register-form-group">
-                  <label className="register-form-label">
-                    {loginType === 'phone' ? 'Telefon Numarası' : 'E-posta Adresi'}
-                  </label>
+                  <label className="register-form-label">E-posta Adresi</label>
                   <input 
                     name="identifier" 
-                    type={loginType === 'phone' ? 'tel' : 'email'}
+                    type="email"
                     className="register-form-input"
-                    placeholder={loginType === 'phone' ? '0555 123 45 67' : 'ornek@email.com'} 
+                    placeholder="ornek@email.com" 
                     required 
                   />
                 </div>

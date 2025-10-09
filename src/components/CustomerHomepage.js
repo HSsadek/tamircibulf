@@ -41,13 +41,18 @@ export default function CustomerHomepage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [showAIChat, setShowAIChat] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
+  const [showAIChat, setShowAIChat] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
+  const [realUserLocation, setRealUserLocation] = useState(null); // Kullanıcının gerçek GPS konumu
   const [locationStatus, setLocationStatus] = useState('loading'); // 'loading', 'success', 'error', 'denied'
-  const [mapZoomData, setMapZoomData] = useState({ zoom: 13, radius: 20 });
+  const [mapZoomData, setMapZoomData] = useState({ zoom: 12, radius: 10 });
+  const [showServiceModal, setShowServiceModal] = useState(false);
+  const [selectedService, setSelectedService] = useState(null);
+  const [selectedCity, setSelectedCity] = useState('');
+  const [showLocationFilter, setShowLocationFilter] = useState(false);
 
   const categories = [
     { id: 'all', name: 'Tümü', icon: '🔧' },
@@ -56,8 +61,21 @@ export default function CustomerHomepage() {
     { id: 'cleaning', name: 'Temizlik', icon: '🧹' },
     { id: 'appliance', name: 'Beyaz Eşya', icon: '🔌' },
     { id: 'computer', name: 'Bilgisayar', icon: '💻' },
-    { id: 'phone', name: 'Telefon', icon: '📱' },
-    { id: 'other', name: 'Diğer', icon: '🛠️' }
+    { id: 'phone', name: 'Telefon', icon: '📱' }
+  ];
+
+  const cities = [
+    { id: 'istanbul', name: 'İstanbul', lat: 41.0082, lng: 28.9784 },
+    { id: 'ankara', name: 'Ankara', lat: 39.9334, lng: 32.8597 },
+    { id: 'izmir', name: 'İzmir', lat: 38.4192, lng: 27.1287 },
+    { id: 'bursa', name: 'Bursa', lat: 40.1826, lng: 29.0665 },
+    { id: 'antalya', name: 'Antalya', lat: 36.8969, lng: 30.7133 },
+    { id: 'adana', name: 'Adana', lat: 37.0000, lng: 35.3213 },
+    { id: 'konya', name: 'Konya', lat: 37.8667, lng: 32.4833 },
+    { id: 'gaziantep', name: 'Gaziantep', lat: 37.0662, lng: 37.3833 },
+    { id: 'kayseri', name: 'Kayseri', lat: 38.7312, lng: 35.4787 },
+    { id: 'eskisehir', name: 'Eskişehir', lat: 39.7767, lng: 30.5206 },
+    { id: 'kahramanmaras', name: 'Kahramanmaraş', lat: 37.5858, lng: 36.9371 }
   ];
 
   useEffect(() => {
@@ -75,11 +93,11 @@ export default function CustomerHomepage() {
   useEffect(() => {
     // Refetch when any filter changes including zoom
     fetchServices(1, false);
-  }, [userLocation, selectedCategory, searchQuery, mapZoomData.radius]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [userLocation, selectedCategory, searchQuery, selectedCity, mapZoomData.radius]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     filterServices();
-  }, [services]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [services, realUserLocation]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle location search from map clicks
   const handleLocationSearch = (locationData) => {
@@ -106,10 +124,12 @@ export default function CustomerHomepage() {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           console.log('Konum başarıyla alındı:', position.coords);
-          setUserLocation({
+          const location = {
             lat: position.coords.latitude,
             lng: position.coords.longitude
-          });
+          };
+          setUserLocation(location);
+          setRealUserLocation(location); // Gerçek konumu da sakla
           setLocationStatus('success');
         },
         (error) => {
@@ -138,10 +158,12 @@ export default function CustomerHomepage() {
           alert(`Konum alınamadı: ${errorMessage}\n\nVarsayılan konum (İstanbul) kullanılacak.`);
           
           // Default İstanbul koordinatları
-          setUserLocation({
+          const defaultLocation = {
             lat: 41.0082,
             lng: 28.9784
-          });
+          };
+          setUserLocation(defaultLocation);
+          setRealUserLocation(defaultLocation);
         },
         {
           enableHighAccuracy: true,
@@ -154,10 +176,12 @@ export default function CustomerHomepage() {
       setLocationStatus('error');
       alert('Tarayıcınız konum hizmetlerini desteklemiyor. Varsayılan konum (İstanbul) kullanılacak.');
       // Default İstanbul koordinatları
-      setUserLocation({
+      const defaultLocation = {
         lat: 41.0082,
         lng: 28.9784
-      });
+      };
+      setUserLocation(defaultLocation);
+      setRealUserLocation(defaultLocation);
     }
   };
 
@@ -185,6 +209,21 @@ export default function CustomerHomepage() {
       // Add filters
       if (selectedCategory && selectedCategory !== 'all') {
         params.append('service_type', selectedCategory);
+      }
+
+      // Add search query
+      if (searchQuery && searchQuery.trim()) {
+        params.append('search', searchQuery.trim());
+        console.log('🔍 Adding search query:', searchQuery.trim());
+      }
+
+      // Add city filter if selected
+      if (selectedCity) {
+        const city = cities.find(c => c.id === selectedCity);
+        if (city) {
+          params.append('city', city.name);
+          console.log('🏙️ Adding city filter:', city.name);
+        }
       }
 
       const apiUrl = `http://localhost:8000/api/services?${params.toString()}`;
@@ -284,8 +323,25 @@ export default function CustomerHomepage() {
   };
 
   const filterServices = () => {
-    // Since filtering is now done on backend, just set services as filtered
-    setFilteredServices(services);
+    // Calculate real distances for all services
+    const servicesWithRealDistances = services.map(service => {
+      if (realUserLocation && service.latitude && service.longitude) {
+        const realDistance = calculateDistance(
+          realUserLocation.lat,
+          realUserLocation.lng,
+          service.latitude,
+          service.longitude
+        );
+        return {
+          ...service,
+          distance: `${Math.round(realDistance)} km`,
+          distanceKm: Math.round(realDistance)
+        };
+      }
+      return service;
+    });
+    
+    setFilteredServices(servicesWithRealDistances);
   };
 
   const loadMoreServices = () => {
@@ -294,15 +350,118 @@ export default function CustomerHomepage() {
     }
   };
 
-  const handleServiceRequest = (serviceId) => {
+  const handleServiceRequest = (serviceId, serviceName) => {
     if (!auth.token) {
       alert('Hizmet talep etmek için giriş yapmalısınız.');
       window.location.hash = '#/login';
       return;
     }
     
-    // Service request logic here
-    alert('Hizmet talebi gönderildi!');
+    // Create service request
+    const confirmRequest = window.confirm(
+      `"${serviceName}" hizmet sağlayıcısından hizmet talep etmek istediğinizden emin misiniz?\n\n` +
+      `Talep gönderildikten sonra servis sağlayıcı sizinle iletişime geçecektir.`
+    );
+    
+    if (confirmRequest) {
+      createServiceRequest(serviceId, serviceName);
+    }
+  };
+
+  const createServiceRequest = async (serviceId, serviceName) => {
+    try {
+      const response = await fetch('http://localhost:8000/api/service-requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${auth.token}`,
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          service_provider_id: serviceId,
+          service_type: 'general',
+          title: `${serviceName} Hizmet Talebi`,
+          description: 'Müşteri tarafından oluşturulan hizmet talebi',
+          address: 'Müşteri adresi',
+          city: 'İstanbul',
+          district: 'Merkez',
+          priority: 'medium'
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        alert(`✅ Hizmet talebiniz başarıyla gönderildi!\n\nTalep ID: ${data.data.id}\nServis sağlayıcı en kısa sürede sizinle iletişime geçecektir.`);
+      } else {
+        const errorData = await response.json();
+        alert(`❌ Hizmet talebi gönderilemedi: ${errorData.message || 'Bilinmeyen hata'}`);
+      }
+    } catch (error) {
+      console.error('Service request error:', error);
+      alert('❌ Hizmet talebi gönderilirken bir hata oluştu. Lütfen tekrar deneyin.');
+    }
+  };
+
+  // Haversine formula to calculate distance between two points
+  const calculateDistance = (lat1, lng1, lat2, lng2) => {
+    const R = 6371; // Radius of the Earth in kilometers
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const distance = R * c;
+    return distance;
+  };
+
+  const handleServiceDetails = (service) => {
+    // Calculate real distance from user's actual location
+    let serviceWithRealDistance = { ...service };
+    
+    if (realUserLocation && service.latitude && service.longitude) {
+      const realDistance = calculateDistance(
+        realUserLocation.lat,
+        realUserLocation.lng,
+        service.latitude,
+        service.longitude
+      );
+      serviceWithRealDistance.realDistance = `${Math.round(realDistance)} km`;
+      console.log(`📏 Gerçek mesafe hesaplandı: ${service.name} - ${Math.round(realDistance)} km`);
+    } else {
+      serviceWithRealDistance.realDistance = service.distance; // Fallback to API distance
+    }
+    
+    setSelectedService(serviceWithRealDistance);
+    setShowServiceModal(true);
+  };
+
+  const closeServiceModal = () => {
+    setShowServiceModal(false);
+    setSelectedService(null);
+  };
+
+  const handleCitySelection = (cityId) => {
+    if (cityId === '') {
+      // Kullanıcının gerçek konumunu kullan
+      setSelectedCity('');
+      setUserLocation(realUserLocation); // Gerçek konuma geri dön
+      setShowLocationFilter(false);
+      console.log('🏠 Gerçek konuma geri dönüldü');
+      return;
+    }
+
+    const city = cities.find(c => c.id === cityId);
+    if (city) {
+      setSelectedCity(cityId);
+      // Seçilen şehrin koordinatlarını sadece API için userLocation'a ata
+      // realUserLocation değişmez, haritada gerçek konum gösterilir
+      setUserLocation({ lat: city.lat, lng: city.lng });
+      setShowLocationFilter(false);
+      console.log(`🏙️ Şehir seçildi: ${city.name} (${city.lat}, ${city.lng})`);
+      console.log(`📍 Gerçek konum: (${realUserLocation?.lat}, ${realUserLocation?.lng})`);
+    }
   };
 
   const sendAIMessage = async () => {
@@ -311,15 +470,47 @@ export default function CustomerHomepage() {
     const userMessage = { type: 'user', content: chatInput };
     setChatMessages(prev => [...prev, userMessage]);
     setChatInput('');
-    
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse = { 
-        type: 'ai', 
-        content: `Merhaba! "${chatInput}" konusunda size yardımcı olabilirim. Hangi tür tamir hizmeti arıyorsunuz?` 
-      };
+
+
+    try {
+      // Backend'e gönder
+      const response = await fetch('http://localhost:8000/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: chatInput })
+      });
+  
+      if (!response.ok) throw new Error('AI API isteği başarısız');
+  
+      const data = await response.json();
+  
+      // Backend'den gelen cevabı ekle
+      const aiResponse = { type: 'ai', content: data.reply };
       setChatMessages(prev => [...prev, aiResponse]);
-    }, 1000);
+    } catch (error) {
+      const errorMsg = { type: 'ai', content: 'AI servisine bağlanırken bir hata oluştu.' };
+      setChatMessages(prev => [...prev, errorMsg]);
+      console.error('AI API hatası:', error);
+    }
+  };
+
+  const handleSearch = () => {
+    console.log('🔍 Search triggered with query:', searchQuery);
+    // Search is already handled by useEffect when searchQuery changes
+    // This function can be used for additional search actions if needed
+    if (searchQuery.trim()) {
+      // Optionally scroll to services section
+      const servicesSection = document.querySelector('.customer-services');
+      if (servicesSection) {
+        servicesSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  };
+
+  const handleSearchKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
   };
 
   return (
@@ -357,9 +548,16 @@ export default function CustomerHomepage() {
               placeholder="Hangi hizmeti arıyorsunuz?"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyPress={handleSearchKeyPress}
               className="customer-search-input"
             />
-            <button className="customer-search-btn">🔍</button>
+            <button 
+              className="customer-search-btn"
+              onClick={handleSearch}
+              title="Ara"
+            >
+              🔍
+            </button>
           </div>
         </div>
       </section>
@@ -387,10 +585,59 @@ export default function CustomerHomepage() {
       <section className="customer-services">
         <div className="customer-container">
           <div className="services-header">
-            <h3>
-              {selectedCategory === 'all' ? 'Tüm Hizmetler' : 
-               categories.find(c => c.id === selectedCategory)?.name || 'Hizmetler'}
-            </h3>
+            <div className="services-header-left">
+              <h3>
+                {selectedCategory === 'all' ? 'Tüm Hizmetler' : 
+                 categories.find(c => c.id === selectedCategory)?.name || 'Hizmetler'}
+              </h3>
+              
+              {/* Location Filter */}
+              <div className="location-filter">
+                <button 
+                  className="location-filter-btn"
+                  onClick={() => setShowLocationFilter(!showLocationFilter)}
+                  title="Konum seç"
+                >
+                  📍 {selectedCity ? cities.find(c => c.id === selectedCity)?.name : 'Mevcut Konumum'}
+                  <span className="dropdown-arrow">▼</span>
+                </button>
+                
+                {showLocationFilter && (
+                  <div className="location-dropdown">
+                    <div className="location-dropdown-header">
+                      <h4>🗺️ Konum Seçin</h4>
+                      <button 
+                        className="location-close"
+                        onClick={() => setShowLocationFilter(false)}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    
+                    <div className="location-options">
+                      <button
+                        className={`location-option ${selectedCity === '' ? 'active' : ''}`}
+                        onClick={() => handleCitySelection('')}
+                      >
+                        📍 Mevcut Konumum
+                        <small>GPS konumunuzu kullanır</small>
+                      </button>
+                      
+                      {cities.map(city => (
+                        <button
+                          key={city.id}
+                          className={`location-option ${selectedCity === city.id ? 'active' : ''}`}
+                          onClick={() => handleCitySelection(city.id)}
+                        >
+                          🏙️ {city.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            
             <div className="view-toggle">
               <button 
                 className={`view-btn ${!showMap ? 'active' : ''}`}
@@ -411,48 +658,47 @@ export default function CustomerHomepage() {
             <div className="customer-loading">Hizmetler yükleniyor...</div>
           ) : showMap ? (
             <div style={{ position: 'relative' }}>
-              <RealMap 
-                userLocation={userLocation} 
-                services={filteredServices} 
-                height="500px"
-                onLocationRequest={() => {
-                  if (navigator.geolocation) {
-                    setLocationStatus('loading');
-                    navigator.geolocation.getCurrentPosition(
-                      (pos) => {
-                        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-                        setLocationStatus('success');
-                      },
-                      (error) => {
-                        console.error('Konum alınamadı:', error);
-                        setLocationStatus('error');
-                        setUserLocation({ lat: 41.0082, lng: 28.9784 }); // Istanbul fallback
+              {realUserLocation ? (
+                <>
+                  <RealMap 
+                    userLocation={realUserLocation}
+                    centerLocation={selectedCity ? cities.find(c => c.id === selectedCity) : realUserLocation}
+                    services={filteredServices} 
+                    height="500px"
+                    onLocationRequest={() => {
+                      if (navigator.geolocation) {
+                        setLocationStatus('loading');
+                        navigator.geolocation.getCurrentPosition(
+                          (pos) => {
+                            const newLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                            setRealUserLocation(newLocation); // Gerçek konumu güncelle
+                            if (!selectedCity) {
+                              setUserLocation(newLocation); // Şehir seçili değilse API konumunu da güncelle
+                            }
+                            setLocationStatus('success');
+                          },
+                          (error) => {
+                            console.error('Konum alınamadı:', error);
+                            setLocationStatus('error');
+                            const fallbackLocation = { lat: 41.0082, lng: 28.9784 };
+                            setRealUserLocation(fallbackLocation);
+                            if (!selectedCity) {
+                              setUserLocation(fallbackLocation);
+                            }
+                          }
+                        );
                       }
-                    );
-                  }
-                }}
-                onLocationSearch={handleLocationSearch}
-              />
-              <button
-                onClick={() => setShowMap(false)}
-                style={{
-                  position: 'absolute',
-                  top: '15px',
-                  left: '15px',
-                  background: 'white',
-                  border: '2px solid #667eea',
-                  borderRadius: '8px',
-                  padding: '10px 16px',
-                  color: '#667eea',
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                  fontWeight: 'bold',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-                  zIndex: 9999
-                }}
-              >
-                📋 Liste Görünümü
-              </button>
+                    }}
+                    onLocationSearch={handleLocationSearch}
+                  />
+                </>
+              ) : (
+                <div className="customer-loading" style={{ textAlign: 'center', padding: '50px' }}>
+                  📍 Konum bilgisi yükleniyor...
+                  <br />
+                  <small>Harita görünümü için konum izni gereklidir</small>
+                </div>
+              )}
             </div>
           ) : (
             <div className="customer-services-grid">
@@ -477,12 +723,17 @@ export default function CustomerHomepage() {
                   <div className="customer-service-actions">
                     <button 
                       className="customer-service-btn primary"
-                      onClick={() => handleServiceRequest(service.id)}
+                      onClick={() => handleServiceRequest(service.id, service.name)}
+                      title="Bu servis sağlayıcısından hizmet talep et"
                     >
-                      Hizmet Talep Et
+                      🛠️ Hizmet Talep Et
                     </button>
-                    <button className="customer-service-btn secondary">
-                      Detaylar
+                    <button 
+                      className="customer-service-btn secondary"
+                      onClick={() => handleServiceDetails(service)}
+                      title="Servis sağlayıcı detaylarını görüntüle"
+                    >
+                      📋 Detaylar
                     </button>
                   </div>
                 </div>
@@ -557,6 +808,87 @@ export default function CustomerHomepage() {
               onKeyPress={(e) => e.key === 'Enter' && sendAIMessage()}
             />
             <button onClick={sendAIMessage}>Gönder</button>
+          </div>
+        </div>
+      )}
+
+      {/* Service Details Modal */}
+      {showServiceModal && selectedService && (
+        <div className="service-modal-overlay" onClick={closeServiceModal}>
+          <div className="service-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="service-modal-header">
+              <h3>🏢 Servis Detayları</h3>
+              <button className="service-modal-close" onClick={closeServiceModal}>
+                ✕
+              </button>
+            </div>
+            
+            <div className="service-modal-body">
+              <div className="service-modal-info">
+                <div className="service-modal-icon">
+                  {selectedService.image}
+                </div>
+                <div className="service-modal-details">
+                  <h4>{selectedService.name}</h4>
+                  <p className="service-modal-type">{selectedService.service_type_name}</p>
+                </div>
+              </div>
+
+              <div className="service-modal-section">
+                <h5>📋 Açıklama</h5>
+                <p>{selectedService.description || 'Açıklama mevcut değil'}</p>
+              </div>
+
+              <div className="service-modal-section">
+                <h5>⭐ Değerlendirme</h5>
+                <div className="service-modal-rating">
+                  <span className="rating-stars">
+                    {'⭐'.repeat(Math.floor(selectedService.rating))}
+                  </span>
+                  <span className="rating-text">
+                    {selectedService.rating}/5 ({selectedService.reviews} değerlendirme)
+                  </span>
+                </div>
+              </div>
+
+              <div className="service-modal-section">
+                <h5>📍 Konum Bilgileri</h5>
+                <p><strong>Şehir:</strong> {selectedService.city}</p>
+                <p><strong>İlçe:</strong> {selectedService.district}</p>
+                <p><strong>Mesafe:</strong> {selectedService.realDistance || selectedService.distance}</p>
+              </div>
+
+
+              <div className="service-modal-section">
+                <h5>🕐 Çalışma Saatleri</h5>
+                <p>{selectedService.working_hours || '09:00 - 18:00'}</p>
+              </div>
+
+              {selectedService.user?.phone && (
+                <div className="service-modal-section">
+                  <h5>📞 İletişim</h5>
+                  <p className="service-modal-phone">{selectedService.user.phone}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="service-modal-footer">
+              <button 
+                className="service-modal-btn secondary"
+                onClick={closeServiceModal}
+              >
+                Kapat
+              </button>
+              <button 
+                className="service-modal-btn primary"
+                onClick={() => {
+                  closeServiceModal();
+                  handleServiceRequest(selectedService.id, selectedService.name);
+                }}
+              >
+                🛠️ Hizmet Talep Et
+              </button>
+            </div>
           </div>
         </div>
       )}

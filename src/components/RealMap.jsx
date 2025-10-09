@@ -116,7 +116,7 @@ const createServiceIcon = (serviceType, rating) => {
   });
 };
 
-export default function RealMap({ userLocation, services, focusedServiceId, className = "", height = "400px", onLocationRequest, onLocationSearch }) {
+export default function RealMap({ userLocation, centerLocation, services, focusedServiceId, className = "", height = "400px", onLocationRequest, onLocationSearch }) {
   const mapRef = useRef(null);
   const [selectedService, setSelectedService] = useState(null);
   const [showServiceModal, setShowServiceModal] = useState(false);
@@ -127,7 +127,9 @@ export default function RealMap({ userLocation, services, focusedServiceId, clas
   
   // Default center (Istanbul)
   const defaultCenter = [41.0082, 28.9784];
-  const mapCenter = userLocation ? [userLocation.lat, userLocation.lng] : defaultCenter;
+  // Use centerLocation if provided, otherwise userLocation, otherwise default
+  const mapCenter = centerLocation ? [centerLocation.lat, centerLocation.lng] : 
+                   userLocation ? [userLocation.lat, userLocation.lng] : defaultCenter;
   // Safe services array
   const safeServices = Array.isArray(services) ? services.filter(s => 
     s && typeof s === 'object' && (s.lat || s.latitude) && (s.lng || s.longitude)
@@ -137,6 +139,14 @@ export default function RealMap({ userLocation, services, focusedServiceId, clas
   useEffect(() => {
     console.log('🗺️ RealMap services updated:', safeServices.length, 'services');
   }, [safeServices.length]);
+
+  // Update map center when centerLocation changes
+  useEffect(() => {
+    if (mapInstance && centerLocation) {
+      console.log('🗺️ Centering map to:', centerLocation);
+      mapInstance.setView([centerLocation.lat, centerLocation.lng], 12);
+    }
+  }, [mapInstance, centerLocation]);
 
   // Handle map clicks for location-based search
   useEffect(() => {
@@ -445,6 +455,20 @@ export default function RealMap({ userLocation, services, focusedServiceId, clas
             e.preventDefault();
             e.stopPropagation();
             console.log('🗺️ Location button clicked');
+            console.log('🗺️ userLocation:', userLocation);
+            console.log('🗺️ mapInstance:', mapInstance);
+            
+            // First, zoom to real user location if available
+            if (userLocation && mapInstance) {
+              console.log('🗺️ Zooming to real user location:', userLocation);
+              mapInstance.setView([userLocation.lat, userLocation.lng], 16);
+            } else {
+              console.log('🗺️ Cannot zoom - missing userLocation or mapInstance');
+              if (!userLocation) console.log('🗺️ Missing userLocation');
+              if (!mapInstance) console.log('🗺️ Missing mapInstance');
+            }
+            
+            // Then request location update
             if (typeof onLocationRequest === 'function') {
               onLocationRequest();
             }
@@ -623,11 +647,6 @@ export default function RealMap({ userLocation, services, focusedServiceId, clas
                   {selectedService.distanceKm && typeof selectedService.distanceKm === 'number' && (
                     <div style={{ marginBottom: '8px' }}>
                       <strong>🚗 Mesafe:</strong> {selectedService.distanceKm.toFixed(1)} km
-                    </div>
-                  )}
-                  {selectedService.price && (
-                    <div style={{ marginBottom: '8px' }}>
-                      <strong>💰 Fiyat:</strong> {selectedService.price}
                     </div>
                   )}
                   {selectedService.working_hours && (

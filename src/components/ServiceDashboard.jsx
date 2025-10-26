@@ -256,10 +256,10 @@ export default function ServiceDashboard() {
           </button>
           <button 
             className={`service-nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-            onClick={() => setActiveTab('profile')}
+            onClick={() => window.location.hash = '#/service-profile'}
           >
             <span className="service-nav-icon">👤</span>
-            Profil
+            Profil Düzenle
           </button>
         </nav>
         

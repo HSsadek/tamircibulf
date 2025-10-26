@@ -2,29 +2,39 @@ import React, { useState, useEffect, useMemo } from 'react';
 import './ServiceDashboard.css';
 
 function useServiceAuth() {
-  return useMemo(() => ({
-    get token() { return localStorage.getItem('service_token') || localStorage.getItem('auth_token'); },
-    get user() { 
-      try { 
-        const userData = localStorage.getItem('service_user') || localStorage.getItem('user_data');
-        console.log('Raw service user data from localStorage:', userData);
-        const parsed = JSON.parse(userData || 'null');
-        console.log('Parsed service user data:', parsed);
-        return parsed;
-      } catch (error) {
-        console.error('Error parsing service user data:', error);
-        return null;
+  return useMemo(() => {
+    const serviceToken = localStorage.getItem('service_token');
+    const authToken = localStorage.getItem('auth_token');
+    const token = serviceToken || authToken;
+    
+    console.log('=== useServiceAuth Debug ===');
+    console.log('service_token:', serviceToken);
+    console.log('auth_token:', authToken);
+    console.log('final token:', token);
+    console.log('user_role:', localStorage.getItem('user_role'));
+    
+    return {
+      get token() { return token; },
+      get user() { 
+        try { 
+          const userData = localStorage.getItem('service_user') || localStorage.getItem('user_data');
+          const parsed = JSON.parse(userData || 'null');
+          return parsed;
+        } catch (error) {
+          console.error('Error parsing service user data:', error);
+          return null;
+        }
+      },
+      logout() {
+        localStorage.removeItem('service_token');
+        localStorage.removeItem('service_user');
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user_data');
+        localStorage.removeItem('user_role');
+        window.location.hash = '#/login';
       }
-    },
-    logout() {
-      localStorage.removeItem('service_token');
-      localStorage.removeItem('service_user');
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('user_data');
-      localStorage.removeItem('user_role');
-      window.location.hash = '#/login';
-    }
-  }), []);
+    };
+  }, []);
 }
 
 export default function ServiceDashboard() {
@@ -48,7 +58,9 @@ export default function ServiceDashboard() {
     
     if (!auth.token) {
       console.log('No service token, redirecting to login');
-      window.location.hash = '#/login';
+      setTimeout(() => {
+        window.location.hash = '#/login';
+      }, 100);
       return;
     }
     
@@ -115,7 +127,8 @@ export default function ServiceDashboard() {
     };
     
     fetchData();
-  }, [auth.token, auth.user]); // Include auth.user to satisfy React Hook dependency warning
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth.token]); // FIXED: Removed auth.user to prevent infinite loop
 
   const fetchDashboardData = async () => {
     try {

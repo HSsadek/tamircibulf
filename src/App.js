@@ -12,7 +12,6 @@ import Register from './components/Register';
 import CustomerHomepage from './components/CustomerHomepage';
 import CustomerDashboard from './components/CustomerDashboard';
 import ServiceDashboard from './components/ServiceDashboard';
-import ServiceProviderProfile from './components/ServiceProviderProfile';
 
 function useHash() {
   const [hash, setHash] = useState(window.location.hash || '#/');
@@ -27,6 +26,27 @@ function useHash() {
 function App() {
   const hash = useHash();
   
+  // Check user role and redirect accordingly on root path
+  const checkAndRedirectByRole = () => {
+    const userRole = localStorage.getItem('user_role');
+    const serviceToken = localStorage.getItem('service_token');
+    const authToken = localStorage.getItem('auth_token');
+    const token = serviceToken || authToken;
+    
+    // If user is logged in, redirect based on role
+    if (token && userRole) {
+      if (userRole === 'service_provider') {
+        window.location.hash = '#/service-dashboard';
+        return <ServiceDashboard />;
+      } else if (userRole === 'customer') {
+        return <CustomerHomepage />;
+      }
+    }
+    
+    // Default: show customer homepage (public browsing)
+    return <CustomerHomepage />;
+  };
+  
   // Admin routes
   if (hash.startsWith('#/admin-portal')) {
     return <AdminLogin />;
@@ -36,10 +56,7 @@ function App() {
   }
   
   // Service provider routes
-  if (hash.startsWith('#/service-profile')) {
-    return <ServiceProviderProfile />;
-  }
-  if (hash.startsWith('#/service-dashboard')) {
+  if (hash.startsWith('#/service-dashboard') || hash.startsWith('#/service-profile')) {
     return <ServiceDashboard />;
   }
   if (hash.startsWith('#/service-register')) {
@@ -68,11 +85,9 @@ function App() {
     return <MainApp />;
   }
   
-  // Customer homepage (default route)
+  // Root path - check role and redirect
   if (hash === '#/' || hash === '') {
-    // Always show CustomerHomepage on first load
-    // Users can login if they want, but default is to browse services
-    return <CustomerHomepage />;
+    return checkAndRedirectByRole();
   }
   
   // Fallback to landing page for unknown routes

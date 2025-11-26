@@ -58,8 +58,8 @@ const userIcon = new L.DivIcon({
   popupAnchor: [0, -20],
 });
 
-// Create custom service icon based on service type
-const createServiceIcon = (serviceType, rating) => {
+// Create custom service icon based on service type and logo
+const createServiceIcon = (serviceType, rating, logo) => {
   const serviceIcons = {
     'plumbing': '🚰',
     'electrical': '⚡',
@@ -79,6 +79,11 @@ const createServiceIcon = (serviceType, rating) => {
   
   const ratingColor = safeRating >= 4.5 ? '#4caf50' : safeRating >= 4.0 ? '#ff9800' : '#f44336';
   
+  // Use logo if available, otherwise use emoji
+  const iconContent = logo ? 
+    `<img src="${logo}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" />` :
+    `<div style="font-size: 20px; line-height: 1;">${icon}</div>`;
+  
   return new L.DivIcon({
     html: `
       <div style="
@@ -94,8 +99,9 @@ const createServiceIcon = (serviceType, rating) => {
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         font-size: 18px;
         position: relative;
+        overflow: hidden;
       ">
-        <div style="font-size: 20px; line-height: 1;">${icon}</div>
+        ${iconContent}
         <div style="
           position: absolute;
           bottom: -8px;
@@ -317,7 +323,8 @@ export default function RealMap({ userLocation, centerLocation, services, focuse
               position={[lat, lng]} 
               icon={createServiceIcon(
                 service.service_type || service.category || 'other', 
-                service.rating !== undefined ? service.rating : 4.0
+                service.rating !== undefined ? service.rating : 4.0,
+                service.logo
               )}
             >
               <Popup>
@@ -330,13 +337,31 @@ export default function RealMap({ userLocation, centerLocation, services, focuse
                     paddingBottom: '8px',
                     borderBottom: '1px solid #eee'
                   }}>
-                    <div style={{ fontSize: '24px', marginRight: '8px' }}>
-                      {service.image || (service.service_type === 'plumbing' ? '🚰' : 
-                                        service.service_type === 'electrical' ? '⚡' : 
-                                        service.service_type === 'cleaning' ? '🧹' : 
-                                        service.service_type === 'appliance' ? '🔌' : 
-                                        service.service_type === 'computer' ? '💻' : 
-                                        service.service_type === 'phone' ? '📱' : '🛠️')}
+                    <div style={{ 
+                      fontSize: '24px', 
+                      marginRight: '8px',
+                      width: '48px',
+                      height: '48px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: '8px',
+                      overflow: 'hidden'
+                    }}>
+                      {service.logo ? (
+                        <img 
+                          src={service.logo} 
+                          alt={service.name} 
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                        />
+                      ) : (
+                        service.image || (service.service_type === 'plumbing' ? '🚰' : 
+                                          service.service_type === 'electrical' ? '⚡' : 
+                                          service.service_type === 'cleaning' ? '🧹' : 
+                                          service.service_type === 'appliance' ? '🔌' : 
+                                          service.service_type === 'computer' ? '💻' : 
+                                          service.service_type === 'phone' ? '📱' : '🛠️')
+                      )}
                     </div>
                     <div>
                       <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#333' }}>
@@ -387,22 +412,6 @@ export default function RealMap({ userLocation, centerLocation, services, focuse
                       </div>
                     )}
                   </div>
-                  
-                  {/* Price */}
-                  {service.price && (
-                    <div style={{ marginBottom: '8px' }}>
-                      <span style={{ 
-                        background: '#e3f2fd', 
-                        color: '#1976d2', 
-                        padding: '4px 8px', 
-                        borderRadius: '8px', 
-                        fontSize: '12px',
-                        fontWeight: 'bold'
-                      }}>
-                        💰 {service.price}
-                      </span>
-                    </div>
-                  )}
                   
                   {/* Description */}
                   {service.description && typeof service.description === 'string' && (
@@ -482,13 +491,32 @@ export default function RealMap({ userLocation, centerLocation, services, focuse
               justifyContent: 'space-between'
             }}>
               <div style={{ display: 'flex', alignItems: 'center' }}>
-                <div style={{ fontSize: '32px', marginRight: '12px' }}>
-                  {selectedService.image || (selectedService.service_type === 'plumbing' ? '🚰' : 
-                                            selectedService.service_type === 'electrical' ? '⚡' : 
-                                            selectedService.service_type === 'cleaning' ? '🧹' : 
-                                            selectedService.service_type === 'appliance' ? '🔌' : 
-                                            selectedService.service_type === 'computer' ? '💻' : 
-                                            selectedService.service_type === 'phone' ? '📱' : '🛠️')}
+                <div style={{ 
+                  fontSize: '32px', 
+                  marginRight: '12px',
+                  width: '64px',
+                  height: '64px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '12px',
+                  overflow: 'hidden',
+                  border: '2px solid #eee'
+                }}>
+                  {selectedService.logo ? (
+                    <img 
+                      src={selectedService.logo} 
+                      alt={selectedService.name} 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                    />
+                  ) : (
+                    selectedService.image || (selectedService.service_type === 'plumbing' ? '🚰' : 
+                                              selectedService.service_type === 'electrical' ? '⚡' : 
+                                              selectedService.service_type === 'cleaning' ? '🧹' : 
+                                              selectedService.service_type === 'appliance' ? '🔌' : 
+                                              selectedService.service_type === 'computer' ? '💻' : 
+                                              selectedService.service_type === 'phone' ? '📱' : '🛠️')
+                  )}
                 </div>
                 <div>
                   <h2 style={{ margin: 0, fontSize: '24px', color: '#333' }}>

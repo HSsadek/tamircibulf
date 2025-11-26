@@ -129,35 +129,18 @@ export default function CustomerHomepage() {
             lng: position.coords.longitude
           };
           setUserLocation(location);
-          setRealUserLocation(location); // Gerçek konumu da sakla
+          setRealUserLocation(location);
           setLocationStatus('success');
         },
         (error) => {
           console.error('Konum alınamadı:', error);
-          let errorMessage = '';
-          switch(error.code) {
-            case error.PERMISSION_DENIED:
-              errorMessage = 'Konum izni reddedildi. Lütfen tarayıcı ayarlarından konum iznini açın.';
-              break;
-            case error.POSITION_UNAVAILABLE:
-              errorMessage = 'Konum bilgisi mevcut değil.';
-              break;
-            case error.TIMEOUT:
-              errorMessage = 'Konum alma işlemi zaman aşımına uğradı.';
-              break;
-            default:
-              errorMessage = 'Bilinmeyen bir hata oluştu.';
-              break;
-          }
-          console.log('Konum hatası:', errorMessage);
           if (error.code === error.PERMISSION_DENIED) {
             setLocationStatus('denied');
           } else {
             setLocationStatus('error');
           }
-          alert(`Konum alınamadı: ${errorMessage}\n\nVarsayılan konum (İstanbul) kullanılacak.`);
           
-          // Default İstanbul koordinatları
+          // Sessizce varsayılan konumu kullan
           const defaultLocation = {
             lat: 41.0082,
             lng: 28.9784
@@ -166,16 +149,13 @@ export default function CustomerHomepage() {
           setRealUserLocation(defaultLocation);
         },
         {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 300000 // 5 dakika cache
+          enableHighAccuracy: false, // Daha hızlı sonuç için
+          timeout: 5000, // 5 saniye
+          maximumAge: 600000 // 10 dakika cache
         }
       );
     } else {
-      console.log('Geolocation desteklenmiyor');
       setLocationStatus('error');
-      alert('Tarayıcınız konum hizmetlerini desteklemiyor. Varsayılan konum (İstanbul) kullanılacak.');
-      // Default İstanbul koordinatları
       const defaultLocation = {
         lat: 41.0082,
         lng: 28.9784
@@ -198,11 +178,19 @@ export default function CustomerHomepage() {
         per_page: '50' // Get more for better map display
       });
 
-      // Add location-based filtering if available
-      if (userLocation) {
+      // Add city filter if selected (priority over location-based filtering)
+      if (selectedCity) {
+        const city = cities.find(c => c.id === selectedCity);
+        if (city) {
+          params.append('city', city.name);
+          console.log('🏙️ Adding city filter:', city.name);
+          // Don't add radius filter when city is selected - show all services in that city
+        }
+      } else if (userLocation) {
+        // Add location-based filtering only if no city is selected
         params.append('lat', userLocation.lat.toString());
         params.append('lng', userLocation.lng.toString());
-        params.append('radius', mapZoomData.radius.toString()); // Dynamic radius based on zoom
+        params.append('radius', mapZoomData.radius.toString());
         console.log(`🗺️ CustomerHomepage: Fetching services with radius ${mapZoomData.radius}km from location ${userLocation.lat}, ${userLocation.lng}`);
       }
 
@@ -215,15 +203,6 @@ export default function CustomerHomepage() {
       if (searchQuery && searchQuery.trim()) {
         params.append('search', searchQuery.trim());
         console.log('🔍 Adding search query:', searchQuery.trim());
-      }
-
-      // Add city filter if selected
-      if (selectedCity) {
-        const city = cities.find(c => c.id === selectedCity);
-        if (city) {
-          params.append('city', city.name);
-          console.log('🏙️ Adding city filter:', city.name);
-        }
       }
 
       const apiUrl = `http://localhost:8000/api/services?${params.toString()}`;
@@ -526,10 +505,43 @@ export default function CustomerHomepage() {
               <div className="customer-user-menu">
                 <span>Merhaba, {auth.user.name || 'Müşteri'}</span>
                 <a href="#/customer-dashboard" className="customer-dashboard-btn">📊 Panelim</a>
-                <button onClick={auth.logout} className="customer-logout-btn">Çıkış</button>
+                {/* Location Status Button */}
+                <button 
+                  className={`location-status-btn ${locationStatus}`}
+                  onClick={getUserLocation}
+                  title={
+                    locationStatus === 'success' ? 'Konum aktif' :
+                    locationStatus === 'denied' ? 'Konum izni reddedildi - Tekrar dene' :
+                    locationStatus === 'error' ? 'Konum alınamadı - Tekrar dene' :
+                    'Konum alınıyor...'
+                  }
+                >
+                  {locationStatus === 'success' && '📍 Konumum'}
+                  {locationStatus === 'denied' && '🚫 Konum İzni'}
+                  {locationStatus === 'error' && '⚠️ Konum Hatası'}
+                  {locationStatus === 'loading' && '⏳ Konum...'}
+                </button>
               </div>
             ) : (
-              <a href="#/login" className="customer-login-btn">Giriş Yap</a>
+              <>
+                {/* Location Status Button for guests */}
+                <button 
+                  className={`location-status-btn ${locationStatus}`}
+                  onClick={getUserLocation}
+                  title={
+                    locationStatus === 'success' ? 'Konum aktif' :
+                    locationStatus === 'denied' ? 'Konum izni reddedildi - Tekrar dene' :
+                    locationStatus === 'error' ? 'Konum alınamadı - Tekrar dene' :
+                    'Konum alınıyor...'
+                  }
+                >
+                  {locationStatus === 'success' && '📍 Konumum'}
+                  {locationStatus === 'denied' && '🚫 Konum İzni'}
+                  {locationStatus === 'error' && '⚠️ Konum Hatası'}
+                  {locationStatus === 'loading' && '⏳ Konum...'}
+                </button>
+                <a href="#/login" className="customer-login-btn">Giriş Yap</a>
+              </>
             )}
           </div>
         </div>
@@ -709,7 +721,13 @@ export default function CustomerHomepage() {
               {filteredServices.map(service => (
                 <div key={service.id} className="customer-service-card">
                   <div className="customer-service-header">
-                    <div className="customer-service-image">{service.image}</div>
+                    <div className="customer-service-image">
+                      {service.logo ? (
+                        <img src={service.logo} alt={service.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
+                      ) : (
+                        service.image
+                      )}
+                    </div>
                     <div className="customer-service-info">
                       <h4>{service.name}</h4>
                       <p className="service-description">{service.description}</p>
@@ -839,7 +857,20 @@ export default function CustomerHomepage() {
               {/* Service Info Card */}
               <div className="service-modal-info">
                 <div className="service-modal-icon">
-                  {selectedService.image}
+                  {selectedService.logo ? (
+                    <img 
+                      src={selectedService.logo} 
+                      alt={selectedService.name} 
+                      style={{ 
+                        width: '100%', 
+                        height: '100%', 
+                        objectFit: 'cover', 
+                        borderRadius: '12px' 
+                      }} 
+                    />
+                  ) : (
+                    selectedService.image
+                  )}
                 </div>
                 <div className="service-modal-details">
                   <h4>{selectedService.name}</h4>

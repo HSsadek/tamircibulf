@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
 import './ServiceProviderProfile.css';
 
 const ServiceProviderProfile = () => {
-  const navigate = useNavigate();
+  const navigate = (path) => {
+    window.location.hash = path;
+  };
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -187,10 +188,12 @@ const ServiceProviderProfile = () => {
   return (
     <div className="service-provider-profile">
       <div className="profile-header">
-        <button className="back-button" onClick={() => navigate('/service-dashboard')}>
-          ← Geri Dön
-        </button>
-        <h1>Profil Düzenle</h1>
+        <div>
+          <button className="back-button" onClick={() => navigate('#/service-dashboard')}>
+            ← Geri Dön
+          </button>
+          <h1>Profil Düzenle</h1>
+        </div>
       </div>
 
       {message.text && (
@@ -397,7 +400,7 @@ const ServiceProviderProfile = () => {
             <button 
               type="button" 
               className="btn-cancel"
-              onClick={() => navigate('/service-dashboard')}
+              onClick={() => navigate('#/service-dashboard')}
             >
               İptal
             </button>

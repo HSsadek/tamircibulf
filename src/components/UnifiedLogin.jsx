@@ -101,8 +101,20 @@ export default function UnifiedLogin() {
       localStorage.setItem('user_data', JSON.stringify(userData));
       localStorage.setItem('user_role', userRole);
       
+      // Normalize role for consistency
+      const normalizedRole = userRole?.toLowerCase();
+      
+      // Save normalized role
+      if (normalizedRole === 'service' || normalizedRole === 'service_provider' || normalizedRole === 'provider') {
+        localStorage.setItem('user_role', 'service_provider');
+      } else if (normalizedRole === 'admin' || normalizedRole === 'administrator') {
+        localStorage.setItem('user_role', 'admin');
+      } else {
+        localStorage.setItem('user_role', 'customer');
+      }
+      
       // Role-based redirection
-      switch (userRole?.toLowerCase()) {
+      switch (normalizedRole) {
         case 'admin':
         case 'administrator':
           console.log('Redirecting to admin dashboard');

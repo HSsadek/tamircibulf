@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import axios from 'axios';
 import './ServiceDashboard.css';
+import './ServiceProviderProfile.css';
 
 function useServiceAuth() {
   return useMemo(() => {
@@ -49,6 +51,42 @@ export default function ServiceDashboard() {
     completedJobs: 0,
     earnings: 0
   });
+
+  // Profile states
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [profileMessage, setProfileMessage] = useState({ type: '', text: '' });
+  const [profile, setProfile] = useState({
+    company_name: '',
+    description: '',
+    service_type: '',
+    city: '',
+    district: '',
+    address: '',
+    phone: '',
+    working_hours: '',
+    logo: '',
+    latitude: '',
+    longitude: ''
+  });
+  const [logoPreview, setLogoPreview] = useState(null);
+  const [logoFile, setLogoFile] = useState(null);
+
+  const serviceTypes = [
+    { value: 'plumbing', label: 'Tesisatçı' },
+    { value: 'electrical', label: 'Elektrikçi' },
+    { value: 'cleaning', label: 'Temizlik' },
+    { value: 'appliance', label: 'Beyaz Eşya Tamiri' },
+    { value: 'computer', label: 'Bilgisayar Tamiri' },
+    { value: 'phone', label: 'Telefon Tamiri' },
+    { value: 'other', label: 'Diğer' }
+  ];
+
+  const cities = [
+    'İstanbul', 'Ankara', 'İzmir', 'Bursa', 'Antalya', 
+    'Adana', 'Konya', 'Gaziantep', 'Kayseri', 'Eskişehir'
+  ];
 
   // Debug user info on component mount
   useEffect(() => {
@@ -180,6 +218,193 @@ export default function ServiceDashboard() {
     }
   };
 
+  // Profile functions
+  const fetchProfile = async () => {
+    setProfileLoading(true);
+    try {
+      const token = localStorage.getItem('service_token') || localStorage.getItem('auth_token') || localStorage.getItem('token');
+      const response = await axios.get('http://localhost:8000/api/service/profile', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        const profileData = response.data.data;
+        // Ensure all fields have proper default values (empty string instead of null)
+        setProfile({
+          company_name: profileData.company_name || '',
+          description: profileData.description || '',
+          service_type: profileData.service_type || '',
+          city: profileData.city || '',
+          district: profileData.district || '',
+          address: profileData.address || '',
+          phone: profileData.phone || '',
+          working_hours: profileData.working_hours || '',
+          logo: profileData.logo || '',
+          latitude: profileData.latitude || '',
+          longitude: profileData.longitude || ''
+        });
+        
+        if (profileData.logo) {
+          setLogoPreview(`http://localhost:8000/storage/${profileData.logo}`);
+        }
+      }
+    } catch (error) {
+      console.error('Profil yüklenirken hata:', error);
+      setProfileMessage({ type: 'error', text: 'Profil yüklenemedi' });
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setProfile(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleLogoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 2048000) {
+        setProfileMessage({ type: 'error', text: 'Logo boyutu 2MB\'dan küçük olmalıdır' });
+        return;
+      }
+      
+      setLogoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleLogoUpload = async () => {
+    if (!logoFile) return;
+
+    setUploadingLogo(true);
+    try {
+      const token = localStorage.getItem('service_token') || localStorage.getItem('auth_token') || localStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('logo', logoFile);
+
+      console.log('Uploading logo...', logoFile);
+
+      const response = await axios.post(
+        'http://localhost:8000/api/service/profile/logo',
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+
+      console.log('Logo upload response:', response.data);
+
+      if (response.data.success) {
+        setProfileMessage({ type: 'success', text: 'Logo başarıyla yüklendi' });
+        setLogoFile(null);
+        await fetchProfile();
+      }
+    } catch (error) {
+      console.error('Logo yükleme hatası:', error);
+      console.error('Error response:', error.response?.data);
+      const errorMsg = error.response?.data?.message || 
+                      error.response?.data?.errors ? 
+                      Object.values(error.response.data.errors).flat().join(', ') : 
+                      'Logo yüklenemedi';
+      setProfileMessage({ type: 'error', text: errorMsg });
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleLogoDelete = async () => {
+    if (!window.confirm('Logoyu silmek istediğinizden emin misiniz?')) return;
+
+    try {
+      const token = localStorage.getItem('service_token') || localStorage.getItem('auth_token') || localStorage.getItem('token');
+      const response = await axios.delete('http://localhost:8000/api/service/profile/logo', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        setProfileMessage({ type: 'success', text: 'Logo silindi' });
+        setLogoPreview(null);
+        setProfile(prev => ({ ...prev, logo: '' }));
+      }
+    } catch (error) {
+      console.error('Logo silme hatası:', error);
+      setProfileMessage({ type: 'error', text: 'Logo silinemedi' });
+    }
+  };
+
+  const handleProfileSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setProfileMessage({ type: '', text: '' });
+
+    try {
+      const token = localStorage.getItem('service_token') || localStorage.getItem('auth_token') || localStorage.getItem('token');
+      
+      // Don't send service_type and logo as they're not in backend validation
+      const { service_type, logo, ...profileData } = profile;
+      
+      // Clean up data - convert empty strings to null or remove them, ensure proper types
+      const cleanedData = {};
+      Object.keys(profileData).forEach(key => {
+        const value = profileData[key];
+        // Only include non-empty values
+        if (value !== '' && value !== null && value !== undefined) {
+          // Convert numeric strings to numbers for latitude/longitude
+          if (key === 'latitude' || key === 'longitude') {
+            cleanedData[key] = value ? parseFloat(value) : null;
+          } else {
+            // Ensure strings are strings
+            cleanedData[key] = String(value);
+          }
+        }
+      });
+      
+      const response = await axios.put(
+        'http://localhost:8000/api/service/profile',
+        cleanedData,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      if (response.data.success) {
+        setProfileMessage({ type: 'success', text: 'Profil başarıyla güncellendi' });
+        fetchProfile();
+      }
+    } catch (error) {
+      console.error('Profil güncelleme hatası:', error);
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.errors ? 
+                          Object.values(error.response.data.errors).flat().join(', ') : 
+                          'Profil güncellenemedi';
+      setProfileMessage({ 
+        type: 'error', 
+        text: errorMessage
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Load profile when profile tab is active
+  useEffect(() => {
+    if (activeTab === 'profile' && auth.token) {
+      fetchProfile();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
   const getTabTitle = () => {
     switch (activeTab) {
       case 'overview': return 'Genel Bakış';
@@ -256,7 +481,7 @@ export default function ServiceDashboard() {
           </button>
           <button 
             className={`service-nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-            onClick={() => window.location.hash = '#/service-profile'}
+            onClick={() => setActiveTab('profile')}
           >
             <span className="service-nav-icon">👤</span>
             Profil Düzenle
@@ -406,60 +631,234 @@ export default function ServiceDashboard() {
 
           {/* Profile Tab */}
           {activeTab === 'profile' && !loading && (
-            <div className="service-profile">
-              <div className="service-card">
-                <div className="service-card-header">
-                  <h2 className="service-card-title">Profil Bilgileri</h2>
+            <div className="service-profile-tab">
+              {profileLoading ? (
+                <div style={{ textAlign: 'center', padding: '40px' }}>
+                  <div className="spinner"></div>
+                  <p>Profil yükleniyor...</p>
                 </div>
-                <div className="service-card-body">
-                  <form className="service-form" onSubmit={(e)=>e.preventDefault()}>
-                    <div className="service-form-group">
-                      <label className="service-form-label">Ad Soyad</label>
-                      <input 
-                        type="text" 
-                        className="service-form-input"
-                        defaultValue={auth.user?.name || auth.user?.full_name || auth.user?.username || 
-                                     (auth.user?.email ? auth.user.email.split('@')[0] : '') || ''} 
-                        placeholder="Ad Soyad" 
-                      />
+              ) : (
+                <>
+                  {profileMessage.text && (
+                    <div className={`message ${profileMessage.type}`}>
+                      {profileMessage.text}
                     </div>
-                    <div className="service-form-group">
-                      <label className="service-form-label">E-posta</label>
-                      <input 
-                        type="email" 
-                        className="service-form-input"
-                        defaultValue={auth.user?.email || 'E-posta bilgisi mevcut değil'} 
-                        placeholder="E-posta adresi" 
-                        readOnly
-                      />
+                  )}
+
+                  <div className="profile-container-inline">
+                    {/* Logo Section */}
+                    <div className="profile-section logo-section">
+                      <h2>Firma Logosu / Fotoğrafı</h2>
+                      <div className="logo-upload-area">
+                        {logoPreview ? (
+                          <div className="logo-preview">
+                            <img src={logoPreview} alt="Logo" />
+                            <div className="logo-actions">
+                              {logoFile && (
+                                <button 
+                                  onClick={handleLogoUpload} 
+                                  disabled={uploadingLogo}
+                                  className="btn-upload"
+                                >
+                                  {uploadingLogo ? 'Yükleniyor...' : 'Yükle'}
+                                </button>
+                              )}
+                              <button onClick={handleLogoDelete} className="btn-delete">
+                                Sil
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="logo-placeholder">
+                            <span>📷</span>
+                            <p>Logo yok</p>
+                          </div>
+                        )}
+                        <input
+                          type="file"
+                          id="logo-input"
+                          accept="image/*"
+                          onChange={handleLogoChange}
+                          style={{ display: 'none' }}
+                        />
+                        <label htmlFor="logo-input" className="btn-select-logo">
+                          {logoPreview ? 'Logoyu Değiştir' : 'Logo Seç'}
+                        </label>
+                        <p className="logo-hint">Maksimum 2MB, JPG, PNG veya GIF</p>
+                      </div>
                     </div>
-                    <div className="service-form-group">
-                      <label className="service-form-label">Telefon</label>
-                      <input 
-                        type="tel" 
-                        className="service-form-input"
-                        defaultValue={auth.user?.phone || ''} 
-                        placeholder="Telefon numarası" 
-                      />
-                    </div>
-                    <div className="service-form-group">
-                      <label className="service-form-label">Hizmet Türü</label>
-                      <input 
-                        type="text" 
-                        className="service-form-input"
-                        defaultValue={auth.user?.service_type || 'Genel Tamir'} 
-                        placeholder="Hizmet türü" 
-                      />
-                    </div>
-                    <div className="service-form-actions">
-                      <button className="service-form-btn primary" type="submit">Kaydet</button>
-                      <button className="service-form-btn secondary" type="button" onClick={()=>window.location.reload()}>
-                        Vazgeç
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
+
+                    {/* Profile Form */}
+                    <form onSubmit={handleProfileSubmit} className="profile-form">
+                      <div className="profile-section">
+                        <h2>Firma Bilgileri</h2>
+                        <div className="form-grid">
+                          <div className="form-group">
+                            <label>Firma Adı *</label>
+                            <input
+                              type="text"
+                              name="company_name"
+                              value={profile.company_name || ''}
+                              onChange={handleInputChange}
+                              required
+                              placeholder="Firma adınızı girin"
+                            />
+                          </div>
+
+                          <div className="form-group">
+                            <label>Hizmet Türü *</label>
+                            <select
+                              name="service_type"
+                              value={profile.service_type || ''}
+                              onChange={handleInputChange}
+                              required
+                              disabled
+                            >
+                              <option value="">Seçiniz</option>
+                              {serviceTypes.map(type => (
+                                <option key={type.value} value={type.value}>
+                                  {type.label}
+                                </option>
+                              ))}
+                            </select>
+                            <small>Hizmet türü değiştirilemez</small>
+                          </div>
+
+                          <div className="form-group full-width">
+                            <label>Açıklama</label>
+                            <textarea
+                              name="description"
+                              value={profile.description || ''}
+                              onChange={handleInputChange}
+                              rows="4"
+                              placeholder="Firmanız hakkında bilgi verin"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="profile-section">
+                        <h2>İletişim Bilgileri</h2>
+                        <div className="form-grid">
+                          <div className="form-group">
+                            <label>Telefon</label>
+                            <input
+                              type="tel"
+                              name="phone"
+                              value={profile.phone || ''}
+                              onChange={handleInputChange}
+                              placeholder="0555 123 45 67"
+                            />
+                          </div>
+
+                          <div className="form-group">
+                            <label>Şehir</label>
+                            <select
+                              name="city"
+                              value={profile.city || ''}
+                              onChange={handleInputChange}
+                            >
+                              <option value="">Seçiniz</option>
+                              {cities.map(city => (
+                                <option key={city} value={city}>
+                                  {city}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="form-group">
+                            <label>İlçe</label>
+                            <input
+                              type="text"
+                              name="district"
+                              value={profile.district || ''}
+                              onChange={handleInputChange}
+                              placeholder="İlçe adı"
+                            />
+                          </div>
+
+                          <div className="form-group full-width">
+                            <label>Adres</label>
+                            <textarea
+                              name="address"
+                              value={profile.address || ''}
+                              onChange={handleInputChange}
+                              rows="3"
+                              placeholder="Tam adresinizi girin"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="profile-section">
+                        <h2>Çalışma Bilgileri</h2>
+                        <div className="form-grid">
+                          <div className="form-group full-width">
+                            <label>Çalışma Saatleri</label>
+                            <input
+                              type="text"
+                              name="working_hours"
+                              value={profile.working_hours || ''}
+                              onChange={handleInputChange}
+                              placeholder="Örn: Pazartesi-Cuma 09:00-18:00"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="profile-section">
+                        <h2>Konum Bilgileri</h2>
+                        <div className="form-grid">
+                          <div className="form-group">
+                            <label>Enlem (Latitude)</label>
+                            <input
+                              type="number"
+                              step="0.000001"
+                              name="latitude"
+                              value={profile.latitude || ''}
+                              onChange={handleInputChange}
+                              placeholder="41.0082"
+                            />
+                          </div>
+
+                          <div className="form-group">
+                            <label>Boylam (Longitude)</label>
+                            <input
+                              type="number"
+                              step="0.000001"
+                              name="longitude"
+                              value={profile.longitude || ''}
+                              onChange={handleInputChange}
+                              placeholder="28.9784"
+                            />
+                          </div>
+                        </div>
+                        <p className="hint">
+                          💡 Konum bilgilerini haritadan otomatik almak için Google Maps'ten koordinatlarınızı kopyalayabilirsiniz
+                        </p>
+                      </div>
+
+                      <div className="form-actions">
+                        <button 
+                          type="button" 
+                          className="btn-cancel"
+                          onClick={() => setActiveTab('overview')}
+                        >
+                          İptal
+                        </button>
+                        <button 
+                          type="submit" 
+                          className="btn-save"
+                          disabled={saving}
+                        >
+                          {saving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

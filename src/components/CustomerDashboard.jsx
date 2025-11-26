@@ -13,6 +13,21 @@ function useCustomerAuth() {
       }
     },
     logout() {
+      // Kullanıcıya özel profil fotoğrafını da temizle
+      try {
+        const userData = localStorage.getItem('customer_user') || localStorage.getItem('user_data');
+        const user = JSON.parse(userData || 'null');
+        if (user?.id) {
+          const userKey = `customer_profile_image_${user.id}`;
+          localStorage.removeItem(userKey);
+        }
+      } catch (error) {
+        console.error('Error cleaning up profile image:', error);
+      }
+      
+      // Eski key'i de temizle (geriye dönük uyumluluk)
+      localStorage.removeItem('customer_profile_image');
+      
       localStorage.removeItem('customer_token');
       localStorage.removeItem('customer_user');
       localStorage.removeItem('auth_token');
@@ -57,6 +72,12 @@ export default function CustomerDashboard() {
   });
 
   const fetchMyRequests = useCallback(async () => {
+    // Token yoksa fetch yapma
+    if (!auth.token) {
+      console.log('⚠️ Token yok, talepler yüklenemiyor');
+      return;
+    }
+    
     try {
       setLoading(true);
       const res = await fetch('http://localhost:8000/api/services/my-requests', {
@@ -78,6 +99,10 @@ export default function CustomerDashboard() {
           completedRequests: requests.filter(r => r.status === 'completed').length,
           cancelledRequests: requests.filter(r => r.status === 'cancelled').length
         });
+      } else if (res.status === 404) {
+        console.warn('⚠️ API endpoint bulunamadı:', res.status);
+      } else if (res.status === 401) {
+        console.warn('⚠️ Yetkilendirme hatası, token geçersiz olabilir');
       }
     } catch (err) {
       console.error('Error fetching requests:', err);
@@ -86,17 +111,82 @@ export default function CustomerDashboard() {
     }
   }, [auth.token]);
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 2 * 1024 * 1024) {
         alert('Dosya boyutu 2MB\'dan küçük olmalıdır.');
         return;
       }
+      
+      // Resmi sıkıştır
+      const img = new Image();
+      img.onload = async () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Maksimum boyut 400x400
+        let width = img.width;
+        let height = img.height;
+        const maxSize = 400;
+        
+        if (width > height) {
+          if (width > maxSize) {
+            height *= maxSize / width;
+            width = maxSize;
+          }
+        } else {
+          if (height > maxSize) {
+            width *= maxSize / height;
+            height = maxSize;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // JPEG formatında, %70 kalitede sıkıştır
+        const imageData = canvas.toDataURL('image/jpeg', 0.7);
+        setProfileImage(imageData);
+        
+        console.log('📸 Orijinal boyut:', file.size, 'bytes');
+        console.log('📸 Sıkıştırılmış boyut:', imageData.length, 'bytes');
+        
+        // Kullanıcıya özel key ile localStorage'a kaydet
+        const userKey = `customer_profile_image_${auth.user?.id}`;
+        localStorage.setItem(userKey, imageData);
+        
+        // Backend'e de kaydet
+        try {
+          const res = await fetch('http://localhost:8000/api/auth/profile', {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${auth.token}`,
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({ profile_image: imageData })
+          });
+          
+          if (res.ok) {
+            const data = await res.json();
+            // Update local storage with new user data
+            localStorage.setItem('user_data', JSON.stringify(data.data.user));
+            localStorage.setItem('customer_user', JSON.stringify(data.data.user));
+            alert('✅ Profil fotoğrafı başarıyla yüklendi!');
+          } else {
+            alert('❌ Profil fotoğrafı yüklenirken hata oluştu.');
+          }
+        } catch (err) {
+          console.error('Error uploading profile image:', err);
+          alert('❌ Profil fotoğrafı yüklenirken hata oluştu.');
+        }
+      };
+      
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfileImage(reader.result);
-        localStorage.setItem('customer_profile_image', reader.result);
+      reader.onload = (e) => {
+        img.src = e.target.result;
       };
       reader.readAsDataURL(file);
     }
@@ -193,43 +283,87 @@ export default function CustomerDashboard() {
   };
 
   useEffect(() => {
-    if (auth.user) {
-      setProfileData({
-        name: auth.user.name || '',
-        email: auth.user.email || '',
-        phone: auth.user.phone || '',
-        address: auth.user.customer?.address || '',
-        city: auth.user.customer?.city || '',
-        district: auth.user.customer?.district || '',
-        latitude: auth.user.customer?.latitude || '',
-        longitude: auth.user.customer?.longitude || ''
-      });
-      
-      // Load notification preferences
-      if (auth.user.customer) {
-        setNotificationPreferences({
-          email_notifications: auth.user.customer.email_notifications ?? true,
-          sms_notifications: auth.user.customer.sms_notifications ?? true,
-          push_notifications: auth.user.customer.push_notifications ?? false
-        });
+    // Backend'den güncel kullanıcı bilgilerini al
+    const fetchUserData = async () => {
+      if (auth.token) {
+        try {
+          const res = await fetch('http://localhost:8000/api/auth/me', {
+            headers: {
+              'Authorization': `Bearer ${auth.token}`,
+              'Accept': 'application/json'
+            }
+          });
+          
+          if (res.ok) {
+            const data = await res.json();
+            const user = data.data.user;
+            
+            // localStorage'ı güncelle
+            localStorage.setItem('user_data', JSON.stringify(user));
+            localStorage.setItem('customer_user', JSON.stringify(user));
+            
+            // State'leri güncelle
+            setProfileData({
+              name: user.name || '',
+              email: user.email || '',
+              phone: user.phone || '',
+              address: user.customer?.address || '',
+              city: user.customer?.city || '',
+              district: user.customer?.district || '',
+              latitude: user.customer?.latitude || '',
+              longitude: user.customer?.longitude || ''
+            });
+            
+            // Load notification preferences
+            if (user.customer) {
+              setNotificationPreferences({
+                email_notifications: user.customer.email_notifications ?? true,
+                sms_notifications: user.customer.sms_notifications ?? true,
+                push_notifications: user.customer.push_notifications ?? false
+              });
+            }
+            
+            // Load profile image
+            if (user.customer?.profile_image) {
+              setProfileImage(user.customer.profile_image);
+              const userKey = `customer_profile_image_${user.id}`;
+              localStorage.setItem(userKey, user.customer.profile_image);
+            }
+          }
+        } catch (err) {
+          console.error('Error fetching user data:', err);
+        }
       }
-      
-      // Load profile image from localStorage
-      const savedImage = localStorage.getItem('customer_profile_image');
-      if (savedImage) {
-        setProfileImage(savedImage);
-      }
-    }
-  }, [auth.user]);
+    };
+    
+    fetchUserData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  // Sadece Overview veya Taleplerim sekmesine tıklandığında fetch yap (bir kez)
+  const [requestsFetched, setRequestsFetched] = useState(false);
+  
   useEffect(() => {
-    fetchMyRequests();
-  }, [fetchMyRequests]);
+    if ((activeTab === 'overview' || activeTab === 'requests') && auth.token && !requestsFetched) {
+      fetchMyRequests();
+      setRequestsFetched(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   const updateProfile = async (e) => {
     e.preventDefault();
     try {
       setLoading(true);
+      
+      // Profil fotoğrafını da ekle
+      const updateData = {
+        ...profileData,
+        profile_image: profileImage // Profil fotoğrafını ekle
+      };
+      
+      console.log('📤 Profil güncelleme isteği:', updateData);
+      
       const res = await fetch('http://localhost:8000/api/auth/profile', {
         method: 'PUT',
         headers: {
@@ -237,21 +371,30 @@ export default function CustomerDashboard() {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        body: JSON.stringify(profileData)
+        body: JSON.stringify(updateData)
       });
+      
+      console.log('📡 Backend yanıtı:', res.status);
       
       if (res.ok) {
         const data = await res.json();
+        console.log('✅ Güncelleme başarılı:', data);
         alert('Profil başarıyla güncellendi!');
+        
         // Update local storage
         localStorage.setItem('user_data', JSON.stringify(data.data.user));
         localStorage.setItem('customer_user', JSON.stringify(data.data.user));
+        
+        console.log('💾 localStorage güncellendi');
       } else {
         const errorData = await res.json();
-        alert('Profil güncellenirken hata oluştu: ' + (errorData.message || 'Bilinmeyen hata'));
+        console.error('❌ Backend hatası:', errorData);
+        console.error('❌ HTTP Status:', res.status);
+        console.error('❌ Gönderilen veri:', updateData);
+        alert('Profil güncellenirken hata oluştu: ' + (errorData.message || errorData.error || 'Bilinmeyen hata'));
       }
     } catch (err) {
-      console.error('Profile update error:', err);
+      console.error('💥 Profile update error:', err);
       alert('Profil güncellenirken hata oluştu.');
     } finally {
       setLoading(false);
@@ -495,9 +638,27 @@ export default function CustomerDashboard() {
                   {profileImage && (
                     <button
                       className="btn-danger"
-                      onClick={() => {
+                      onClick={async () => {
                         setProfileImage(null);
-                        localStorage.removeItem('customer_profile_image');
+                        
+                        // Kullanıcıya özel key ile localStorage'dan sil
+                        const userKey = `customer_profile_image_${auth.user?.id}`;
+                        localStorage.removeItem(userKey);
+                        
+                        // Backend'den de sil
+                        try {
+                          await fetch('http://localhost:8000/api/auth/profile', {
+                            method: 'PUT',
+                            headers: {
+                              'Authorization': `Bearer ${auth.token}`,
+                              'Content-Type': 'application/json',
+                              'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({ profile_image: null })
+                          });
+                        } catch (err) {
+                          console.error('Error removing profile image:', err);
+                        }
                       }}
                     >
                       🗑️ Kaldır

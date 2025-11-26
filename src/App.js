@@ -3,7 +3,6 @@ import './App.css';
 import LandingPage from './components/LandingPage';
 import AuthLayout from './auth/AuthLayout';
 import MainApp from './main/MainApp';
-import ServiceDetail from './main/ServiceDetail';
 import ServiceRegistration from './service/ServiceRegistration';
 import PendingApproval from './auth/PendingApproval';
 import AdminLogin from './admin/AdminLogin';
@@ -46,9 +45,6 @@ function App() {
   if (hash.startsWith('#/service-register')) {
     return <ServiceRegistration />;
   }
-  if (hash.startsWith('#/service/')) {
-    return <ServiceDetail />;
-  }
   
   // Auth routes
   if (hash.startsWith('#/login')) {
@@ -74,27 +70,8 @@ function App() {
   
   // Customer homepage (default route)
   if (hash === '#/' || hash === '') {
-    // Check if user is logged in and redirect accordingly
-    const userRole = localStorage.getItem('user_role');
-    const authToken = localStorage.getItem('auth_token');
-    
-    if (authToken && userRole) {
-      switch (userRole.toLowerCase()) {
-        case 'admin':
-        case 'administrator':
-          window.location.hash = '#/admin';
-          return <div>Yönlendiriliyor...</div>;
-        case 'service':
-        case 'service_provider':
-        case 'provider':
-        case 'tamirci':
-          window.location.hash = '#/service-dashboard';
-          return <div>Yönlendiriliyor...</div>;
-        default:
-          return <CustomerHomepage />;
-      }
-    }
-    
+    // Always show CustomerHomepage on first load
+    // Users can login if they want, but default is to browse services
     return <CustomerHomepage />;
   }
   

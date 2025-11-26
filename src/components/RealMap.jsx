@@ -448,68 +448,6 @@ export default function RealMap({ userLocation, centerLocation, services, focuse
         })}
       </MapContainer>
       
-      {/* Location button overlay */}
-      {onLocationRequest && (
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('🗺️ Location button clicked');
-            console.log('🗺️ userLocation:', userLocation);
-            console.log('🗺️ mapInstance:', mapInstance);
-            
-            // First, zoom to real user location if available
-            if (userLocation && mapInstance) {
-              console.log('🗺️ Zooming to real user location:', userLocation);
-              mapInstance.setView([userLocation.lat, userLocation.lng], 16);
-            } else {
-              console.log('🗺️ Cannot zoom - missing userLocation or mapInstance');
-              if (!userLocation) console.log('🗺️ Missing userLocation');
-              if (!mapInstance) console.log('🗺️ Missing mapInstance');
-            }
-            
-            // Then request location update
-            if (typeof onLocationRequest === 'function') {
-              onLocationRequest();
-            }
-          }}
-          style={{
-            position: 'absolute',
-            bottom: '15px',
-            right: '15px',
-            background: 'white',
-            border: '2px solid #4caf50',
-            borderRadius: '8px',
-            padding: '10px 14px',
-            cursor: 'pointer',
-            fontSize: '13px',
-            fontWeight: 'bold',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            color: '#4caf50',
-            transition: 'all 0.2s ease',
-            minWidth: '100px',
-            justifyContent: 'center'
-          }}
-          onMouseOver={(e) => {
-            e.target.style.background = '#4caf50';
-            e.target.style.color = 'white';
-            e.target.style.transform = 'scale(1.05)';
-          }}
-          onMouseOut={(e) => {
-            e.target.style.background = 'white';
-            e.target.style.color = '#4caf50';
-            e.target.style.transform = 'scale(1)';
-          }}
-          title="Konumumu al"
-        >
-          📍 Konumum
-        </button>
-      )}
-      
       {/* Service Detail Modal */}
       {showServiceModal && selectedService && (
         <div style={{

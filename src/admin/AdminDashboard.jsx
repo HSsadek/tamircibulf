@@ -18,7 +18,7 @@ function useAdminAuth() {
     logout() {
       localStorage.removeItem('admin_token');
       localStorage.removeItem('admin_user');
-      window.location.hash = '#/admin-portal';
+      window.location.hash = '#/';
     }
   }), []);
 }

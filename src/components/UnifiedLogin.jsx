@@ -198,7 +198,6 @@ export default function UnifiedLogin() {
             <div className="role-info">
               <p><strong>Müşteri misin?</strong> Ana sayfaya yönlendirileceksin</p>
               <p><strong>Servis sağlayıcı mısın?</strong> Dashboard'ına yönlendirileceksin</p>
-              <p><strong>Admin misin?</strong> <a href="#/admin-portal">Buraya tıkla</a></p>
             </div>
           </div>
         </div>

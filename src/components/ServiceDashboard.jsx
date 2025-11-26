@@ -31,7 +31,7 @@ function useServiceAuth() {
         localStorage.removeItem('auth_token');
         localStorage.removeItem('user_data');
         localStorage.removeItem('user_role');
-        window.location.hash = '#/login';
+        window.location.hash = '#/';
       }
     };
   }, []);

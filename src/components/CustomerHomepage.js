@@ -498,7 +498,25 @@ export default function CustomerHomepage() {
       <header className="customer-header">
         <div className="customer-header-content">
           <div className="customer-logo">
-            <h1>🔧 TamirciBul</h1>
+            <div className="logo-icon">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="16" cy="16" r="14" fill="url(#gradient1)" />
+                <path d="M12 10L16 6L20 10M16 6V18" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M10 16L14 20L18 16M22 16L18 20" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="16" cy="24" r="2" fill="white"/>
+                <defs>
+                  <linearGradient id="gradient1" x1="2" y1="2" x2="30" y2="30" gradientUnits="userSpaceOnUse">
+                    <stop stopColor="#667eea"/>
+                    <stop offset="1" stopColor="#764ba2"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+            <div className="logo-text">
+              <span className="logo-brand">Tamir</span>
+              <span className="logo-brand-accent">ciBul</span>
+              <span className="logo-domain">.com</span>
+            </div>
           </div>
           <div className="customer-header-actions">
             {auth.user ? (

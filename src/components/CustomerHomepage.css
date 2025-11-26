@@ -67,10 +67,67 @@
   background: rgba(255, 255, 255, 0.95);
 }
 
-.customer-logo h1 {
-  margin: 0;
-  font-size: 22px;
-  color: #1e293b;
+.customer-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.customer-logo:hover {
+  transform: scale(1.05);
+}
+
+.logo-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: rotate 20s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.customer-logo:hover .logo-icon {
+  animation: rotate 2s linear infinite;
+}
+
+.logo-text {
+  display: flex;
+  align-items: baseline;
+  font-weight: 800;
+  font-size: 24px;
+  letter-spacing: -0.5px;
+}
+
+.logo-brand {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.logo-brand-accent {
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 900;
+}
+
+.logo-domain {
+  color: #667eea;
+  font-weight: 600;
+  font-size: 18px;
+  margin-left: 2px;
+  opacity: 0.8;
 }
 
 .customer-header-actions {

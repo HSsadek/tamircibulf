@@ -533,6 +533,29 @@ export default function CustomerHomepage() {
             )}
           </div>
         </div>
+        
+        {/* Sticky Search Bar */}
+        <div className="customer-sticky-search">
+          <div className="customer-header-content">
+            <div className="customer-search-bar-sticky">
+              <input 
+                type="text"
+                placeholder="Hangi hizmeti arıyorsunuz?"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyPress={handleSearchKeyPress}
+                className="customer-search-input"
+              />
+              <button 
+                className="customer-search-btn"
+                onClick={handleSearch}
+                title="Ara"
+              >
+                🔍
+              </button>
+            </div>
+          </div>
+        </div>
       </header>
 
       {/* Hero Section */}
@@ -540,25 +563,6 @@ export default function CustomerHomepage() {
         <div className="customer-hero-content">
           <h2>En Yakın Tamircini Bul</h2>
           <p>Güvenilir ve profesyonel tamir hizmetleri</p>
-          
-          {/* Search Bar */}
-          <div className="customer-search-bar">
-            <input 
-              type="text"
-              placeholder="Hangi hizmeti arıyorsunuz?"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyPress={handleSearchKeyPress}
-              className="customer-search-input"
-            />
-            <button 
-              className="customer-search-btn"
-              onClick={handleSearch}
-              title="Ara"
-            >
-              🔍
-            </button>
-          </div>
         </div>
       </section>
 
@@ -708,32 +712,40 @@ export default function CustomerHomepage() {
                     <div className="customer-service-image">{service.image}</div>
                     <div className="customer-service-info">
                       <h4>{service.name}</h4>
-                      <p>{service.description}</p>
+                      <p className="service-description">{service.description}</p>
                     </div>
                   </div>
                   
                   <div className="customer-service-details">
-                    <div className="customer-service-rating">
-                      ⭐ {service.rating} ({service.reviews} değerlendirme)
+                    <div className="service-detail-item">
+                      <span className="detail-icon">⭐</span>
+                      <span className="detail-text">{service.rating || '5.0'}</span>
+                      <span className="detail-subtext">({service.reviews || 0} değerlendirme)</span>
                     </div>
-                    <div className="customer-service-distance">📍 {service.distance}</div>
-                    <div className="customer-service-price">💰 {service.price}</div>
+                    <div className="service-detail-item">
+                      <span className="detail-icon">📍</span>
+                      <span className="detail-text">{service.city}, {service.district}</span>
+                    </div>
+                    <div className="service-detail-item">
+                      <span className="detail-icon">🚗</span>
+                      <span className="detail-text">{service.distance}</span>
+                    </div>
                   </div>
                   
                   <div className="customer-service-actions">
                     <button 
-                      className="customer-service-btn primary"
-                      onClick={() => handleServiceRequest(service.id, service.name)}
-                      title="Bu servis sağlayıcısından hizmet talep et"
-                    >
-                      🛠️ Hizmet Talep Et
-                    </button>
-                    <button 
                       className="customer-service-btn secondary"
                       onClick={() => handleServiceDetails(service)}
-                      title="Servis sağlayıcı detaylarını görüntüle"
+                      title="Servis detaylarını görüntüle"
                     >
                       📋 Detaylar
+                    </button>
+                    <button 
+                      className="customer-service-btn primary"
+                      onClick={() => handleServiceRequest(service.id, service.name)}
+                      title="Hizmet talep et"
+                    >
+                      🛠️ Hizmet Talep Et
                     </button>
                   </div>
                 </div>
@@ -812,7 +824,7 @@ export default function CustomerHomepage() {
         </div>
       )}
 
-      {/* Service Details Modal */}
+      {/* Service Details Panel */}
       {showServiceModal && selectedService && (
         <div className="service-modal-overlay" onClick={closeServiceModal}>
           <div className="service-modal-content" onClick={(e) => e.stopPropagation()}>
@@ -824,50 +836,105 @@ export default function CustomerHomepage() {
             </div>
             
             <div className="service-modal-body">
+              {/* Service Info Card */}
               <div className="service-modal-info">
                 <div className="service-modal-icon">
                   {selectedService.image}
                 </div>
                 <div className="service-modal-details">
                   <h4>{selectedService.name}</h4>
-                  <p className="service-modal-type">{selectedService.service_type_name}</p>
+                  <p className="service-modal-type">{selectedService.service_type_name || selectedService.service_type}</p>
                 </div>
               </div>
 
+              {/* Description */}
               <div className="service-modal-section">
                 <h5>📋 Açıklama</h5>
-                <p>{selectedService.description || 'Açıklama mevcut değil'}</p>
+                <p>{selectedService.description || 'Bu servis sağlayıcı profesyonel hizmet sunmaktadır.'}</p>
               </div>
 
+              {/* Rating */}
               <div className="service-modal-section">
                 <h5>⭐ Değerlendirme</h5>
                 <div className="service-modal-rating">
                   <span className="rating-stars">
-                    {'⭐'.repeat(Math.floor(selectedService.rating))}
+                    {'⭐'.repeat(Math.floor(selectedService.rating || 5))}
                   </span>
                   <span className="rating-text">
-                    {selectedService.rating}/5 ({selectedService.reviews} değerlendirme)
+                    {selectedService.rating || '5.0'}/5 ({selectedService.reviews || 0} değerlendirme)
                   </span>
                 </div>
               </div>
 
+              {/* Location Info */}
               <div className="service-modal-section">
                 <h5>📍 Konum Bilgileri</h5>
                 <p><strong>Şehir:</strong> {selectedService.city}</p>
                 <p><strong>İlçe:</strong> {selectedService.district}</p>
                 <p><strong>Mesafe:</strong> {selectedService.realDistance || selectedService.distance}</p>
+                {selectedService.address && (
+                  <p><strong>Adres:</strong> {selectedService.address}</p>
+                )}
               </div>
 
-
+              {/* Working Hours */}
               <div className="service-modal-section">
                 <h5>🕐 Çalışma Saatleri</h5>
-                <p>{selectedService.working_hours || '09:00 - 18:00'}</p>
+                <p>{selectedService.working_hours || '09:00 - 18:00 (Hafta içi)'}</p>
               </div>
 
+              {/* Contact Section */}
               {selectedService.user?.phone && (
                 <div className="service-modal-section">
                   <h5>📞 İletişim</h5>
                   <p className="service-modal-phone">{selectedService.user.phone}</p>
+                  <div className="contact-buttons">
+                    <a 
+                      href={`tel:${selectedService.user.phone}`}
+                      className="contact-btn phone-btn"
+                    >
+                      📞 Telefon Et
+                    </a>
+                    <a 
+                      href={`https://wa.me/${selectedService.user.phone.replace(/\D/g, '')}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="contact-btn whatsapp-btn"
+                    >
+                      💬 WhatsApp
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {/* Map Section */}
+              {(selectedService.latitude || selectedService.lat) && (selectedService.longitude || selectedService.lng) && (
+                <div className="service-modal-section">
+                  <h5>🗺️ Konum</h5>
+                  <a 
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent((selectedService.latitude || selectedService.lat) + ',' + (selectedService.longitude || selectedService.lng))}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="map-btn"
+                  >
+                    🗺️ Yol Tarifi Al
+                  </a>
+                  <button 
+                    className="map-btn show-map-btn"
+                    onClick={() => {
+                      closeServiceModal();
+                      setShowMap(true);
+                      // Scroll to map
+                      setTimeout(() => {
+                        const mapSection = document.querySelector('.customer-services');
+                        if (mapSection) {
+                          mapSection.scrollIntoView({ behavior: 'smooth' });
+                        }
+                      }, 100);
+                    }}
+                  >
+                    📍 Haritada Göster
+                  </button>
                 </div>
               )}
             </div>

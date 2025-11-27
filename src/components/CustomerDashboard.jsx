@@ -50,6 +50,8 @@ export default function CustomerDashboard() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [requestToCancel, setRequestToCancel] = useState(null);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [requestToDelete, setRequestToDelete] = useState(null);
   const [profileData, setProfileData] = useState({
     name: '',
     email: '',
@@ -399,6 +401,7 @@ export default function CustomerDashboard() {
       case 'in_progress': return '#9c27b0';
       case 'completed': return '#4caf50';
       case 'cancelled': return '#f44336';
+      case 'rejected': return '#e91e63';
       default: return '#757575';
     }
   };
@@ -409,8 +412,40 @@ export default function CustomerDashboard() {
       case 'accepted': return 'Kabul Edildi';
       case 'in_progress': return 'Devam Ediyor';
       case 'completed': return 'Tamamlandı';
+      case 'rejected': return 'Reddedildi';
       case 'cancelled': return 'İptal Edildi';
       default: return status;
+    }
+  };
+
+  const handleDeleteRequest = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`http://localhost:8000/api/services/request/${requestToDelete.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${auth.token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        // Talepleri yeniden yükle
+        fetchMyRequests();
+        setShowDeleteConfirm(false);
+        setRequestToDelete(null);
+        setShowSuccessMessage(true);
+        setTimeout(() => setShowSuccessMessage(false), 3000);
+      } else {
+        alert(data.message || 'Talep silinemedi');
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert('Talep silinirken bir hata oluştu');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -815,6 +850,17 @@ export default function CustomerDashboard() {
                       <h3>{request.title}</h3>
                       <p className="request-description">{request.description}</p>
                       
+                      {/* Rejection Reason */}
+                      {request.status === 'rejected' && request.cancellation_reason && (
+                        <div className="rejection-reason-box">
+                          <div className="rejection-reason-header">
+                            <span className="rejection-icon">⚠️</span>
+                            <strong>Reddetme Sebebi:</strong>
+                          </div>
+                          <p className="rejection-reason-text">{request.cancellation_reason}</p>
+                        </div>
+                      )}
+                      
                       <div className="request-meta">
                         <div className="meta-item">
                           <span className="meta-icon">📍</span>
@@ -859,6 +905,17 @@ export default function CustomerDashboard() {
                           }}
                         >
                           ❌ İptal Et
+                        </button>
+                      )}
+                      {(request.status === 'rejected' || request.status === 'cancelled') && (
+                        <button 
+                          className="btn-delete"
+                          onClick={() => {
+                            setRequestToDelete(request);
+                            setShowDeleteConfirm(true);
+                          }}
+                        >
+                          🗑️ Sil
                         </button>
                       )}
                     </div>
@@ -1081,6 +1138,47 @@ export default function CustomerDashboard() {
       )}
 
       {/* Cancel Confirmation Dialog */}
+      {/* Delete Confirm Dialog */}
+      {showDeleteConfirm && requestToDelete && (
+        <div className="confirm-dialog-overlay" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="confirm-dialog-header">
+              <div className="confirm-dialog-icon">🗑️</div>
+              <h3>Talebi Sil</h3>
+            </div>
+            
+            <div className="confirm-dialog-body">
+              <p>
+                <strong>{requestToDelete.title}</strong> talebini silmek istediğinizden emin misiniz?
+              </p>
+              <p className="warning-text">
+                Bu işlem geri alınamaz!
+              </p>
+            </div>
+            
+            <div className="confirm-dialog-footer">
+              <button 
+                className="confirm-btn confirm-btn-cancel"
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setRequestToDelete(null);
+                }}
+                disabled={loading}
+              >
+                Vazgeç
+              </button>
+              <button 
+                className="confirm-btn confirm-btn-confirm"
+                onClick={handleDeleteRequest}
+                disabled={loading}
+              >
+                {loading ? 'Siliniyor...' : 'Evet, Sil'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showCancelConfirm && requestToCancel && (
         <div className="confirm-dialog-overlay" onClick={() => setShowCancelConfirm(false)}>
           <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>

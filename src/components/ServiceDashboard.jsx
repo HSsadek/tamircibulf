@@ -50,8 +50,24 @@ export default function ServiceDashboard() {
     totalRequests: 0,
     pendingRequests: 0,
     completedJobs: 0,
-    earnings: 0
+    complaints: 0
   });
+  
+  // Notification states
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  
+  // Reject modal states
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectingRequestId, setRejectingRequestId] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [isRejecting, setIsRejecting] = useState(false);
+  
+  // Delete modal states
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingRequestId, setDeletingRequestId] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Profile states
   const [profileLoading, setProfileLoading] = useState(false);
@@ -88,6 +104,47 @@ export default function ServiceDashboard() {
     'İstanbul', 'Ankara', 'İzmir', 'Bursa', 'Antalya', 
     'Adana', 'Konya', 'Gaziantep', 'Kayseri', 'Eskişehir'
   ];
+
+  // Fetch notifications
+  const fetchNotifications = async () => {
+    try {
+      const res = await fetch('http://localhost:8000/api/service/notifications', {
+        headers: {
+          'Authorization': `Bearer ${auth.token}`,
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        const notifs = data.data || data.notifications || [];
+        setNotifications(notifs);
+        setUnreadCount(notifs.filter(n => !n.read).length);
+      }
+    } catch (err) {
+      console.error('Notifications fetch error:', err);
+    }
+  };
+
+  // Mark notification as read
+  const markAsRead = async (notificationId) => {
+    try {
+      await fetch(`http://localhost:8000/api/service/notifications/${notificationId}/read`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${auth.token}`,
+          'Accept': 'application/json'
+        }
+      });
+      
+      setNotifications(prev => 
+        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (err) {
+      console.error('Mark as read error:', err);
+    }
+  };
 
   // Debug user info on component mount
   useEffect(() => {
@@ -130,7 +187,7 @@ export default function ServiceDashboard() {
               totalRequests: 0,
               pendingRequests: 0,
               completedJobs: 0,
-              earnings: 0
+              complaints: 0
             });
           }
         } else {
@@ -157,6 +214,9 @@ export default function ServiceDashboard() {
           console.error('Requests API error:', await requestsRes.json());
         }
         
+        // Fetch notifications
+        await fetchNotifications();
+        
       } catch (err) {
         console.error('Dashboard data fetch error:', err);
         setError('Dashboard verileri yüklenirken hata oluştu: ' + err.message);
@@ -174,6 +234,7 @@ export default function ServiceDashboard() {
       setLoading(true);
       setError('');
       
+      // Fetch dashboard stats
       const dashboardRes = await fetch('http://localhost:8000/api/service/dashboard', {
         headers: {
           'Authorization': `Bearer ${auth.token}`,
@@ -186,6 +247,19 @@ export default function ServiceDashboard() {
         if (dashboardData.success) {
           setStats(dashboardData.data?.stats || stats);
         }
+      }
+      
+      // Fetch service requests
+      const requestsRes = await fetch('http://localhost:8000/api/service/requests', {
+        headers: {
+          'Authorization': `Bearer ${auth.token}`,
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (requestsRes.ok) {
+        const requestsData = await requestsRes.json();
+        setRequests(requestsData?.data || requestsData?.requests || []);
       }
       
     } catch (err) {
@@ -208,15 +282,136 @@ export default function ServiceDashboard() {
       });
       
       if (res.ok) {
+        // Show success message
+        const successMsg = document.createElement('div');
+        successMsg.className = 'service-toast service-toast-success';
+        successMsg.textContent = action === 'accept' ? '✓ Talep kabul edildi' : '✓ İşlem başarılı';
+        document.body.appendChild(successMsg);
+        setTimeout(() => successMsg.remove(), 3000);
+        
         // Refresh requests
-        fetchDashboardData();
+        await fetchDashboardData();
       } else {
         throw new Error('İşlem başarısız');
       }
     } catch (err) {
       console.error('Request action error:', err);
-      alert('İşlem sırasında hata oluştu');
+      
+      // Show error message
+      const errorMsg = document.createElement('div');
+      errorMsg.className = 'service-toast service-toast-error';
+      errorMsg.textContent = '✕ İşlem sırasında hata oluştu';
+      document.body.appendChild(errorMsg);
+      setTimeout(() => errorMsg.remove(), 3000);
     }
+  };
+
+  const handleRejectClick = (requestId) => {
+    setRejectingRequestId(requestId);
+    setRejectReason('');
+    setShowRejectModal(true);
+  };
+
+  const handleRejectConfirm = async () => {
+    if (!rejectReason.trim()) {
+      alert('Lütfen reddetme sebebini belirtin');
+      return;
+    }
+
+    setIsRejecting(true);
+    try {
+      const res = await fetch(`http://localhost:8000/api/service/requests/${rejectingRequestId}/reject`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${auth.token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          reason: rejectReason
+        })
+      });
+      
+      if (res.ok) {
+        setShowRejectModal(false);
+        setRejectReason('');
+        setRejectingRequestId(null);
+        
+        // Show success message
+        const successMsg = document.createElement('div');
+        successMsg.className = 'service-toast service-toast-success';
+        successMsg.textContent = '✓ Talep başarıyla reddedildi';
+        document.body.appendChild(successMsg);
+        setTimeout(() => successMsg.remove(), 3000);
+        
+        // Refresh requests
+        await fetchDashboardData();
+      } else {
+        throw new Error('İşlem başarısız');
+      }
+    } catch (err) {
+      console.error('Reject error:', err);
+      alert('Reddetme işlemi sırasında hata oluştu');
+    } finally {
+      setIsRejecting(false);
+    }
+  };
+
+  const handleRejectCancel = () => {
+    setShowRejectModal(false);
+    setRejectReason('');
+    setRejectingRequestId(null);
+  };
+
+  const handleDeleteClick = (requestId) => {
+    setDeletingRequestId(requestId);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`http://localhost:8000/api/service/requests/${deletingRequestId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${auth.token}`,
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (res.ok) {
+        setShowDeleteModal(false);
+        setDeletingRequestId(null);
+        
+        // Show success message
+        const successMsg = document.createElement('div');
+        successMsg.className = 'service-toast service-toast-success';
+        successMsg.textContent = '✓ Talep başarıyla silindi';
+        document.body.appendChild(successMsg);
+        setTimeout(() => successMsg.remove(), 3000);
+        
+        // Refresh requests
+        await fetchDashboardData();
+      } else {
+        throw new Error('Silme işlemi başarısız');
+      }
+    } catch (err) {
+      console.error('Delete error:', err);
+      
+      // Show error message
+      const errorMsg = document.createElement('div');
+      errorMsg.className = 'service-toast service-toast-error';
+      errorMsg.textContent = '✕ Silme işlemi sırasında hata oluştu';
+      document.body.appendChild(errorMsg);
+      setTimeout(() => errorMsg.remove(), 3000);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setDeletingRequestId(null);
   };
 
   // Profile functions
@@ -423,7 +618,7 @@ export default function ServiceDashboard() {
     switch (activeTab) {
       case 'overview': return 'Genel Bakış';
       case 'requests': return 'Gelen Talepler';
-      case 'jobs': return 'Aktif İşler';
+      case 'complaints': return 'Müşteri Şikayetleri';
       case 'profile': return 'Profil Ayarları';
       default: return 'Dashboard';
     }
@@ -487,11 +682,11 @@ export default function ServiceDashboard() {
             Gelen Talepler
           </button>
           <button 
-            className={`service-nav-item ${activeTab === 'jobs' ? 'active' : ''}`}
-            onClick={() => setActiveTab('jobs')}
+            className={`service-nav-item ${activeTab === 'complaints' ? 'active' : ''}`}
+            onClick={() => setActiveTab('complaints')}
           >
-            <span className="service-nav-icon">🔧</span>
-            Aktif İşler
+            <span className="service-nav-icon">⚠️</span>
+            Müşteri Şikayetleri
           </button>
           <button 
             className={`service-nav-item ${activeTab === 'profile' ? 'active' : ''}`}
@@ -527,9 +722,66 @@ export default function ServiceDashboard() {
       <div className="service-main">
         <header className="service-header">
           <h1 className="service-header-title">{getTabTitle()}</h1>
-          <div className="service-header-user">
-            <span>Hoş geldin, {auth.user?.name || auth.user?.full_name || auth.user?.username || 
-                   (auth.user?.email ? auth.user.email.split('@')[0] : null) || 'Servis Sağlayıcı'}</span>
+          <div className="service-header-actions">
+            <button 
+              className="service-refresh-btn"
+              onClick={fetchDashboardData}
+              title="Yenile"
+            >
+              🔄
+            </button>
+            <div className="service-notifications-wrapper">
+              <button 
+                className="service-notifications-btn"
+                onClick={() => setShowNotifications(!showNotifications)}
+              >
+                🔔
+                {unreadCount > 0 && (
+                  <span className="service-notification-badge">{unreadCount}</span>
+                )}
+              </button>
+              
+              {showNotifications && (
+                <div className="service-notifications-dropdown">
+                  <div className="service-notifications-header">
+                    <h3>Bildirimler</h3>
+                    <button onClick={() => setShowNotifications(false)}>✕</button>
+                  </div>
+                  <div className="service-notifications-list">
+                    {notifications.length === 0 ? (
+                      <div className="service-notification-empty">
+                        Henüz bildirim yok
+                      </div>
+                    ) : (
+                      notifications.map(notif => (
+                        <div 
+                          key={notif.id} 
+                          className={`service-notification-item ${!notif.read ? 'unread' : ''}`}
+                          onClick={() => !notif.read && markAsRead(notif.id)}
+                        >
+                          <div className="service-notification-icon">
+                            {notif.type === 'new_request' ? '📋' : 
+                             notif.type === 'request_accepted' ? '✅' : 
+                             notif.type === 'request_completed' ? '🎉' : '📢'}
+                          </div>
+                          <div className="service-notification-content">
+                            <div className="service-notification-title">{notif.title}</div>
+                            <div className="service-notification-message">{notif.message}</div>
+                            <div className="service-notification-time">
+                              {new Date(notif.created_at).toLocaleString('tr-TR')}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="service-header-user">
+              <span>Hoş geldin, {auth.user?.name || auth.user?.full_name || auth.user?.username || 
+                     (auth.user?.email ? auth.user.email.split('@')[0] : null) || 'Servis Sağlayıcı'}</span>
+            </div>
           </div>
         </header>
         
@@ -540,103 +792,299 @@ export default function ServiceDashboard() {
           {/* Overview Tab */}
           {activeTab === 'overview' && !loading && (
             <div className="service-overview">
+              {/* Modern Stats Cards with Animation */}
               <div className="service-stats-grid">
-                <div className="service-stat-card">
-                  <div className="service-stat-icon">📋</div>
+                <div className="service-stat-card modern">
+                  <div className="service-stat-icon-wrapper blue">
+                    <div className="service-stat-icon">📋</div>
+                  </div>
                   <div className="service-stat-info">
                     <div className="service-stat-number">{stats.totalRequests}</div>
                     <div className="service-stat-label">Toplam Talep</div>
                   </div>
                 </div>
-                <div className="service-stat-card">
-                  <div className="service-stat-icon">⏳</div>
+                <div className="service-stat-card modern">
+                  <div className="service-stat-icon-wrapper orange">
+                    <div className="service-stat-icon">⏳</div>
+                  </div>
                   <div className="service-stat-info">
                     <div className="service-stat-number">{stats.pendingRequests}</div>
                     <div className="service-stat-label">Bekleyen Talep</div>
                   </div>
                 </div>
-                <div className="service-stat-card">
-                  <div className="service-stat-icon">✅</div>
+                <div className="service-stat-card modern">
+                  <div className="service-stat-icon-wrapper green">
+                    <div className="service-stat-icon">✅</div>
+                  </div>
                   <div className="service-stat-info">
                     <div className="service-stat-number">{stats.completedJobs}</div>
                     <div className="service-stat-label">Tamamlanan İş</div>
                   </div>
                 </div>
-                <div className="service-stat-card">
-                  <div className="service-stat-icon">💰</div>
+                <div className="service-stat-card modern">
+                  <div className="service-stat-icon-wrapper red">
+                    <div className="service-stat-icon">⚠️</div>
+                  </div>
                   <div className="service-stat-info">
-                    <div className="service-stat-number">₺{stats.earnings}</div>
-                    <div className="service-stat-label">Toplam Kazanç</div>
+                    <div className="service-stat-number">{stats.complaints}</div>
+                    <div className="service-stat-label">Müşteri Şikayeti</div>
                   </div>
                 </div>
               </div>
               
-              <div className="service-recent-requests">
-                <h3>Son Talepler</h3>
-                {requests.slice(0, 5).map(request => (
-                  <div key={request.id} className="service-request-item">
-                    <div className="service-request-info">
-                      <div className="service-request-title">{request.title || request.service_type}</div>
-                      <div className="service-request-customer">{request.customer_name}</div>
-                      <div className="service-request-date">{new Date(request.created_at).toLocaleDateString('tr-TR')}</div>
+              {/* Recent Requests with Modern Design */}
+              <div className="service-recent-requests modern">
+                <div className="service-section-header">
+                  <h3>Son Talepler</h3>
+                  <button 
+                    className="service-view-all-btn"
+                    onClick={() => setActiveTab('requests')}
+                  >
+                    Tümünü Gör →
+                  </button>
+                </div>
+                <div className="service-requests-list">
+                  {requests.length === 0 ? (
+                    <div className="service-empty-state">
+                      <div className="service-empty-icon">📭</div>
+                      <p>Henüz talep bulunmuyor</p>
                     </div>
-                    <div className={`service-request-status ${request.status}`}>
-                      {request.status === 'pending' ? 'Bekliyor' : 
-                       request.status === 'accepted' ? 'Kabul Edildi' : 
-                       request.status === 'completed' ? 'Tamamlandı' : request.status}
-                    </div>
-                  </div>
-                ))}
+                  ) : (
+                    requests.slice(0, 5).map(request => {
+                      const profileImage = request.customer?.customer?.profile_image;
+                      const customerName = request.customer?.name || request.customer_name || 'Müşteri';
+                      
+                      // Check if profile_image is base64 or file path
+                      const imageSrc = profileImage 
+                        ? (profileImage.startsWith('data:') 
+                            ? profileImage 
+                            : `http://localhost:8000/storage/${profileImage}`)
+                        : null;
+                      
+                      return (
+                      <div key={request.id} className="service-request-item modern">
+                        <div className="service-request-avatar">
+                          {imageSrc ? (
+                            <img 
+                              src={imageSrc} 
+                              alt={customerName}
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
+                          <span style={{ display: imageSrc ? 'none' : 'flex' }}>
+                            {customerName.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="service-request-info">
+                          <div className="service-request-title">{request.title || request.service_type}</div>
+                          <div className="service-request-meta">
+                            <span className="service-request-customer">👤 {customerName}</span>
+                            <span className="service-request-date">📅 {new Date(request.created_at).toLocaleDateString('tr-TR')}</span>
+                          </div>
+                        </div>
+                        <div className={`service-request-status modern ${request.status}`}>
+                          {request.status === 'pending' ? '⏳ Bekliyor' : 
+                           request.status === 'accepted' ? '✅ Kabul Edildi' : 
+                           request.status === 'completed' ? '🎉 Tamamlandı' : 
+                           request.status === 'rejected' ? '❌ Reddedildi' : 
+                           request.status === 'cancelled' ? '🚫 İptal Edildi' : request.status}
+                        </div>
+                      </div>
+                    )})
+                  )}
+                </div>
               </div>
             </div>
           )}
 
           {/* Requests Tab */}
           {activeTab === 'requests' && !loading && (
-            <div className="service-requests">
-              <div className="service-card">
-                <div className="service-card-header">
-                  <h2 className="service-card-title">Gelen Talepler</h2>
+            <div className="service-requests modern">
+              {requests.length === 0 ? (
+                <div className="service-empty-state">
+                  <div className="service-empty-icon">📭</div>
+                  <h3>Henüz talep bulunmuyor</h3>
+                  <p>Yeni talepler geldiğinde burada görünecek.</p>
                 </div>
-                <div className="service-card-body">
-                  {requests.length === 0 ? (
-                    <p>Henüz talep bulunmuyor.</p>
-                  ) : (
-                    requests.map(request => (
-                      <div key={request.id} className="service-request-card">
-                        <div className="service-request-header">
-                          <h4>{request.title || request.service_type}</h4>
-                          <span className={`service-status-badge ${request.status}`}>
-                            {request.status === 'pending' ? 'Bekliyor' : 
-                             request.status === 'accepted' ? 'Kabul Edildi' : 
-                             request.status === 'completed' ? 'Tamamlandı' : request.status}
-                          </span>
+              ) : (
+                <div className="service-requests-grid">
+                  {requests.map(request => {
+                    const customerName = request.customer?.name || 'Müşteri';
+                    const customerPhone = request.customer?.phone || 'Belirtilmemiş';
+                    const createdDate = new Date(request.created_at);
+                    const profileImage = request.customer?.customer?.profile_image;
+                    
+                    const imageSrc = profileImage 
+                      ? (profileImage.startsWith('data:') 
+                          ? profileImage 
+                          : `http://localhost:8000/storage/${profileImage}`)
+                      : null;
+                    
+                    return (
+                    <div key={request.id} className="service-request-card modern">
+                      {/* Delete Button for Rejected/Cancelled Requests */}
+                      {(request.status === 'rejected' || request.status === 'cancelled') && (
+                        <button 
+                          className="service-delete-btn"
+                          onClick={() => handleDeleteClick(request.id)}
+                          title="Talebi Sil"
+                        >
+                          🗑️
+                        </button>
+                      )}
+                      
+                      {/* Card Header with Customer Info */}
+                      <div className="service-request-card-header">
+                        <div className="service-customer-info">
+                          <div className="service-customer-avatar">
+                            {imageSrc ? (
+                              <img 
+                                src={imageSrc} 
+                                alt={customerName}
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                  e.target.nextSibling.style.display = 'flex';
+                                }}
+                              />
+                            ) : null}
+                            <span style={{ display: imageSrc ? 'none' : 'flex' }}>
+                              {customerName.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="service-customer-details">
+                            <div className="service-customer-name">{customerName}</div>
+                            <div className="service-customer-phone">📞 {customerPhone}</div>
+                          </div>
                         </div>
-                        <div className="service-request-details">
-                          <p><strong>Müşteri:</strong> {request.customer_name}</p>
-                          <p><strong>Telefon:</strong> {request.customer_phone}</p>
-                          <p><strong>Adres:</strong> {request.address}</p>
-                          <p><strong>Açıklama:</strong> {request.description}</p>
-                          <p><strong>Tarih:</strong> {new Date(request.created_at).toLocaleDateString('tr-TR')}</p>
-                        </div>
-                        {request.status === 'pending' && (
-                          <div className="service-request-actions">
-                            <button 
-                              className="service-btn service-btn-success"
-                              onClick={() => handleRequestAction(request.id, 'accept')}
-                            >
-                              Kabul Et
-                            </button>
-                            <button 
-                              className="service-btn service-btn-danger"
-                              onClick={() => handleRequestAction(request.id, 'reject')}
-                            >
-                              Reddet
-                            </button>
+                        <span className={`service-status-badge modern ${request.status}`}>
+                          {request.status === 'pending' ? '⏳ Bekliyor' : 
+                           request.status === 'accepted' ? '✅ Kabul Edildi' : 
+                           request.status === 'completed' ? '🎉 Tamamlandı' : 
+                           request.status === 'rejected' ? '❌ Reddedildi' : 
+                           request.status === 'cancelled' ? '🚫 İptal Edildi' : request.status}
+                        </span>
+                      </div>
+
+                      {/* Card Body */}
+                      <div className="service-request-card-body">
+                        <h3 className="service-request-title">{request.title || request.service_type}</h3>
+                        <p className="service-request-description">{request.description}</p>
+                        
+                        {/* Rejection Reason */}
+                        {request.status === 'rejected' && request.cancellation_reason && (
+                          <div className="service-rejection-reason-box">
+                            <div className="service-rejection-reason-header">
+                              <span className="service-rejection-icon">⚠️</span>
+                              <strong>Reddetme Sebebiniz:</strong>
+                            </div>
+                            <p className="service-rejection-reason-text">{request.cancellation_reason}</p>
                           </div>
                         )}
+                        
+                        <div className="service-request-meta-grid">
+                          <div className="service-meta-item">
+                            <span className="service-meta-icon">📍</span>
+                            <div className="service-meta-content">
+                              <div className="service-meta-label">Adres</div>
+                              <div className="service-meta-value">{request.address}</div>
+                            </div>
+                          </div>
+                          <div className="service-meta-item">
+                            <span className="service-meta-icon">📅</span>
+                            <div className="service-meta-content">
+                              <div className="service-meta-label">Tarih</div>
+                              <div className="service-meta-value">
+                                {createdDate.toLocaleDateString('tr-TR')} {createdDate.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            </div>
+                          </div>
+                          {request.budget_min && request.budget_max && (
+                            <div className="service-meta-item">
+                              <span className="service-meta-icon">💰</span>
+                              <div className="service-meta-content">
+                                <div className="service-meta-label">Bütçe</div>
+                                <div className="service-meta-value">
+                                  ₺{request.budget_min} - ₺{request.budget_max}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    ))
+
+                      {/* Card Footer with Actions */}
+                      {request.status === 'pending' && (
+                        <div className="service-request-card-footer">
+                          <button 
+                            className="service-btn service-btn-success modern"
+                            onClick={() => handleRequestAction(request.id, 'accept')}
+                          >
+                            ✓ Kabul Et
+                          </button>
+                          <button 
+                            className="service-btn service-btn-danger modern"
+                            onClick={() => handleRejectClick(request.id)}
+                          >
+                            ✕ Reddet
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )})}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Complaints Tab */}
+          {activeTab === 'complaints' && !loading && (
+            <div className="service-complaints">
+              <div className="service-card">
+                <div className="service-card-header">
+                  <h2 className="service-card-title">Müşteri Şikayetleri</h2>
+                </div>
+                <div className="service-card-body">
+                  <div className="service-complaints-info">
+                    <div className="service-info-box">
+                      <span className="service-info-icon">ℹ️</span>
+                      <p>Müşteriler, hizmetinizden memnun kalmadıklarında buradan şikayet oluşturabilirler. 
+                      Şikayetleri dikkate alarak hizmet kalitenizi artırabilirsiniz.</p>
+                    </div>
+                  </div>
+                  
+                  {stats.complaints === 0 ? (
+                    <div className="service-empty-state">
+                      <div className="service-empty-icon">✅</div>
+                      <h3>Harika! Henüz şikayet yok</h3>
+                      <p>Müşterileriniz hizmetinizden memnun görünüyor.</p>
+                    </div>
+                  ) : (
+                    <div className="service-complaints-list">
+                      {/* Şikayetler burada listelenecek */}
+                      <div className="service-complaint-card">
+                        <div className="service-complaint-header">
+                          <div className="service-complaint-user">
+                            <div className="service-complaint-avatar">M</div>
+                            <div>
+                              <div className="service-complaint-name">Müşteri Adı</div>
+                              <div className="service-complaint-date">25 Kasım 2025</div>
+                            </div>
+                          </div>
+                          <span className="service-complaint-status pending">Beklemede</span>
+                        </div>
+                        <div className="service-complaint-content">
+                          <h4>Şikayet Konusu</h4>
+                          <p>Şikayet detayları burada görünecek...</p>
+                        </div>
+                        <div className="service-complaint-actions">
+                          <button className="service-btn service-btn-primary">Yanıtla</button>
+                          <button className="service-btn service-btn-success">Çözüldü Olarak İşaretle</button>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -877,6 +1325,85 @@ export default function ServiceDashboard() {
           )}
         </div>
       </div>
+
+      {/* Delete Modal */}
+      {showDeleteModal && (
+        <div className="service-modal-overlay" onClick={handleDeleteCancel}>
+          <div className="service-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="service-modal-header">
+              <h3>Talebi Sil</h3>
+              <button className="service-modal-close" onClick={handleDeleteCancel}>✕</button>
+            </div>
+            <div className="service-modal-body">
+              <div className="service-delete-warning">
+                <span className="service-warning-icon">⚠️</span>
+                <p>Bu talebi silmek istediğinizden emin misiniz?</p>
+                <p className="service-warning-text">Bu işlem geri alınamaz!</p>
+              </div>
+            </div>
+            <div className="service-modal-footer">
+              <button 
+                className="service-modal-btn service-modal-btn-cancel"
+                onClick={handleDeleteCancel}
+                disabled={isDeleting}
+              >
+                İptal
+              </button>
+              <button 
+                className="service-modal-btn service-modal-btn-danger"
+                onClick={handleDeleteConfirm}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Siliniyor...' : 'Evet, Sil'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Modal */}
+      {showRejectModal && (
+        <div className="service-modal-overlay" onClick={handleRejectCancel}>
+          <div className="service-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="service-modal-header">
+              <h3>Talebi Reddet</h3>
+              <button className="service-modal-close" onClick={handleRejectCancel}>✕</button>
+            </div>
+            <div className="service-modal-body">
+              <p className="service-modal-description">
+                Bu talebi reddetmek istediğinizden emin misiniz? Lütfen reddetme sebebinizi belirtin.
+              </p>
+              <div className="service-form-group">
+                <label className="service-form-label">Reddetme Sebebi *</label>
+                <textarea
+                  className="service-form-textarea"
+                  rows="4"
+                  placeholder="Örn: Şu anda yoğunluk nedeniyle bu talebi kabul edemiyorum..."
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  disabled={isRejecting}
+                />
+              </div>
+            </div>
+            <div className="service-modal-footer">
+              <button 
+                className="service-modal-btn service-modal-btn-cancel"
+                onClick={handleRejectCancel}
+                disabled={isRejecting}
+              >
+                İptal
+              </button>
+              <button 
+                className="service-modal-btn service-modal-btn-danger"
+                onClick={handleRejectConfirm}
+                disabled={isRejecting || !rejectReason.trim()}
+              >
+                {isRejecting ? 'Reddediliyor...' : 'Talebi Reddet'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

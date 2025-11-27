@@ -45,6 +45,11 @@ export default function CustomerDashboard() {
   const [loading, setLoading] = useState(false);
   const [myRequests, setMyRequests] = useState([]);
   const [profileImage, setProfileImage] = useState(null);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [showRequestDetail, setShowRequestDetail] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [requestToCancel, setRequestToCancel] = useState(null);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [profileData, setProfileData] = useState({
     name: '',
     email: '',
@@ -81,6 +86,9 @@ export default function CustomerDashboard() {
     
     try {
       setLoading(true);
+      console.log('📤 Talepler isteniyor...', 'http://localhost:8000/api/services/my-requests');
+      console.log('🔑 Token:', auth.token);
+      
       const res = await fetch('http://localhost:8000/api/services/my-requests', {
         headers: {
           'Authorization': `Bearer ${auth.token}`,
@@ -88,25 +96,34 @@ export default function CustomerDashboard() {
         }
       });
       
+      console.log('📥 Response status:', res.status);
+      
       if (res.ok) {
         const data = await res.json();
+        console.log('✅ API Response:', data);
         const requests = data?.data || [];
+        console.log('📋 Requests count:', requests.length);
+        console.log('📋 Requests:', requests);
         setMyRequests(requests);
         
         // Calculate stats
-        setStats({
+        const newStats = {
           totalRequests: requests.length,
           pendingRequests: requests.filter(r => r.status === 'pending').length,
           completedRequests: requests.filter(r => r.status === 'completed').length,
           cancelledRequests: requests.filter(r => r.status === 'cancelled').length
-        });
+        };
+        console.log('📊 Stats:', newStats);
+        setStats(newStats);
       } else if (res.status === 404) {
         console.warn('⚠️ API endpoint bulunamadı:', res.status);
       } else if (res.status === 401) {
         console.warn('⚠️ Yetkilendirme hatası, token geçersiz olabilir');
+      } else {
+        console.error('❌ API error:', res.status, await res.text());
       }
     } catch (err) {
-      console.error('Error fetching requests:', err);
+      console.error('💥 Error fetching requests:', err);
     } finally {
       setLoading(false);
     }
@@ -771,12 +788,20 @@ export default function CustomerDashboard() {
                   <div key={request.id} className="request-card-modern">
                     <div className="request-card-header">
                       <div className="request-icon">
-                        {request.service_type === 'plumbing' ? '🚰' :
-                         request.service_type === 'electrical' ? '⚡' :
-                         request.service_type === 'cleaning' ? '🧹' :
-                         request.service_type === 'appliance' ? '🔌' :
-                         request.service_type === 'computer' ? '💻' :
-                         request.service_type === 'phone' ? '📱' : '🛠️'}
+                        {request.service_provider?.logo ? (
+                          <img 
+                            src={request.service_provider.logo} 
+                            alt={request.service_provider.company_name || request.service_provider.name}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }}
+                          />
+                        ) : (
+                          request.service_type === 'plumbing' ? '🚰' :
+                          request.service_type === 'electrical' ? '⚡' :
+                          request.service_type === 'cleaning' ? '🧹' :
+                          request.service_type === 'appliance' ? '🔌' :
+                          request.service_type === 'computer' ? '💻' :
+                          request.service_type === 'phone' ? '📱' : '🛠️'
+                        )}
                       </div>
                       <span 
                         className="request-status"
@@ -809,16 +834,32 @@ export default function CustomerDashboard() {
                       
                       {request.service_provider && (
                         <div className="assigned-provider">
-                          <span className="provider-icon">👨‍🔧</span>
-                          <span>{request.service_provider.name}</span>
+                          <span className="provider-icon">🏢</span>
+                          <span>{request.service_provider.company_name || request.service_provider.name}</span>
                         </div>
                       )}
                     </div>
                     
                     <div className="request-card-footer">
-                      <button className="btn-view">👁️ Detaylar</button>
+                      <button 
+                        className="btn-view"
+                        onClick={() => {
+                          setSelectedRequest(request);
+                          setShowRequestDetail(true);
+                        }}
+                      >
+                        👁️ Detaylar
+                      </button>
                       {request.status === 'pending' && (
-                        <button className="btn-cancel">❌ İptal Et</button>
+                        <button 
+                          className="btn-cancel"
+                          onClick={() => {
+                            setRequestToCancel(request);
+                            setShowCancelConfirm(true);
+                          }}
+                        >
+                          ❌ İptal Et
+                        </button>
                       )}
                     </div>
                   </div>
@@ -882,53 +923,29 @@ export default function CustomerDashboard() {
 
             <div className="settings-card">
               <div className="settings-card-header">
-                <h2>🔔 Bildirim Tercihleri</h2>
+                <h2>🌍 Dil Tercihi</h2>
               </div>
               
-              <div className="settings-options">
-                <div className="setting-item">
-                  <div className="setting-info">
-                    <h4>📧 E-posta Bildirimleri</h4>
-                    <p>Talep güncellemeleri için e-posta alın</p>
-                  </div>
-                  <label className="toggle-switch">
-                    <input 
-                      type="checkbox" 
-                      checked={notificationPreferences.email_notifications}
-                      onChange={(e) => updateNotificationPreference('email_notifications', e.target.checked)}
-                    />
-                    <span className="toggle-slider"></span>
-                  </label>
-                </div>
-                
-                <div className="setting-item">
-                  <div className="setting-info">
-                    <h4>📱 SMS Bildirimleri</h4>
-                    <p>Önemli güncellemeler için SMS alın</p>
-                  </div>
-                  <label className="toggle-switch">
-                    <input 
-                      type="checkbox" 
-                      checked={notificationPreferences.sms_notifications}
-                      onChange={(e) => updateNotificationPreference('sms_notifications', e.target.checked)}
-                    />
-                    <span className="toggle-slider"></span>
-                  </label>
-                </div>
-                
-                <div className="setting-item">
-                  <div className="setting-info">
-                    <h4>🔔 Push Bildirimleri</h4>
-                    <p>Tarayıcı bildirimleri alın</p>
-                  </div>
-                  <label className="toggle-switch">
-                    <input 
-                      type="checkbox" 
-                      checked={notificationPreferences.push_notifications}
-                      onChange={(e) => updateNotificationPreference('push_notifications', e.target.checked)}
-                    />
-                    <span className="toggle-slider"></span>
-                  </label>
+              <div className="settings-form">
+                <div className="form-group">
+                  <label>Uygulama Dili</label>
+                  <select 
+                    className="language-select"
+                    defaultValue="tr"
+                    onChange={(e) => {
+                      localStorage.setItem('app_language', e.target.value);
+                      alert('Dil tercihi kaydedildi! Değişikliklerin uygulanması için sayfayı yenileyin.');
+                    }}
+                  >
+                    <option value="tr">🇹🇷 Türkçe</option>
+                    <option value="en">🇬🇧 English</option>
+                    <option value="de">🇩🇪 Deutsch</option>
+                    <option value="fr">🇫🇷 Français</option>
+                    <option value="ar">🇸🇦 العربية</option>
+                  </select>
+                  <p className="form-hint">
+                    Uygulama dilini değiştirin. Değişiklikler sayfa yenilendiğinde uygulanacaktır.
+                  </p>
                 </div>
               </div>
             </div>
@@ -952,6 +969,207 @@ export default function CustomerDashboard() {
         )}
       </div>
       </div>
+
+      {/* Request Detail Modal */}
+      {showRequestDetail && selectedRequest && (
+        <div className="modal-overlay" onClick={() => setShowRequestDetail(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>📋 Talep Detayları</h2>
+              <button className="modal-close" onClick={() => setShowRequestDetail(false)}>✕</button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="detail-section">
+                <h3>Genel Bilgiler</h3>
+                <div className="detail-grid">
+                  <div className="detail-item">
+                    <span className="detail-label">Başlık:</span>
+                    <span className="detail-value">{selectedRequest.title}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Durum:</span>
+                    <span 
+                      className="detail-value status-badge"
+                      style={{ backgroundColor: getStatusColor(selectedRequest.status) }}
+                    >
+                      {getStatusText(selectedRequest.status)}
+                    </span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Öncelik:</span>
+                    <span className="detail-value">{selectedRequest.priority === 'urgent' ? '🔴 Acil' : selectedRequest.priority === 'high' ? '🟠 Yüksek' : selectedRequest.priority === 'medium' ? '🟡 Orta' : '🟢 Düşük'}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Tarih:</span>
+                    <span className="detail-value">{new Date(selectedRequest.created_at).toLocaleString('tr-TR')}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="detail-section">
+                <h3>Açıklama</h3>
+                <p className="detail-description">{selectedRequest.description}</p>
+              </div>
+
+              <div className="detail-section">
+                <h3>Adres Bilgileri</h3>
+                <div className="detail-grid">
+                  <div className="detail-item full-width">
+                    <span className="detail-label">Adres:</span>
+                    <span className="detail-value">{selectedRequest.address}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Şehir:</span>
+                    <span className="detail-value">{selectedRequest.city}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">İlçe:</span>
+                    <span className="detail-value">{selectedRequest.district}</span>
+                  </div>
+                </div>
+              </div>
+
+              {selectedRequest.service_provider && (
+                <div className="detail-section">
+                  <h3>🏢 Atanan Firma</h3>
+                  <div className="provider-info">
+                    <div className="provider-avatar">
+                      {selectedRequest.service_provider.logo ? (
+                        <img 
+                          src={selectedRequest.service_provider.logo} 
+                          alt={selectedRequest.service_provider.company_name || selectedRequest.service_provider.name}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                        />
+                      ) : (
+                        '🏢'
+                      )}
+                    </div>
+                    <div className="provider-details">
+                      <div className="provider-name">
+                        {selectedRequest.service_provider.company_name || selectedRequest.service_provider.name}
+                      </div>
+                      <div className="provider-contact">
+                        <span>📧 {selectedRequest.service_provider.email}</span>
+                        <span>📱 {selectedRequest.service_provider.phone}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer">
+              {selectedRequest.status === 'pending' && (
+                <button 
+                  className="btn-danger"
+                  onClick={() => {
+                    setRequestToCancel(selectedRequest);
+                    setShowCancelConfirm(true);
+                    setShowRequestDetail(false);
+                  }}
+                >
+                  ❌ Talebi İptal Et
+                </button>
+              )}
+              <button className="btn-secondary" onClick={() => setShowRequestDetail(false)}>
+                Kapat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Confirmation Dialog */}
+      {showCancelConfirm && requestToCancel && (
+        <div className="confirm-dialog-overlay" onClick={() => setShowCancelConfirm(false)}>
+          <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="confirm-dialog-header">
+              <div className="confirm-dialog-icon">⚠️</div>
+              <h3>Talebi İptal Et</h3>
+            </div>
+            
+            <div className="confirm-dialog-body">
+              <p>
+                <strong>{requestToCancel.title}</strong> talebini iptal etmek istediğinizden emin misiniz?
+              </p>
+              <p className="warning-text">
+                Bu işlem geri alınamaz!
+              </p>
+            </div>
+            
+            <div className="confirm-dialog-footer">
+              <button 
+                className="confirm-btn confirm-btn-cancel"
+                onClick={() => {
+                  setShowCancelConfirm(false);
+                  setRequestToCancel(null);
+                }}
+              >
+                Vazgeç
+              </button>
+              <button 
+                className="confirm-btn confirm-btn-confirm"
+                onClick={async () => {
+                  try {
+                    setLoading(true);
+                    const res = await fetch(`http://localhost:8000/api/services/request/${requestToCancel.id}/cancel`, {
+                      method: 'POST',
+                      headers: {
+                        'Authorization': `Bearer ${auth.token}`,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                      }
+                    });
+
+                    const data = await res.json();
+
+                    if (res.ok && data.success) {
+                      // Talepleri yeniden yükle
+                      fetchMyRequests();
+                      setShowCancelConfirm(false);
+                      setRequestToCancel(null);
+                      // Başarı mesajını göster
+                      setShowSuccessMessage(true);
+                      // 3 saniye sonra otomatik kapat
+                      setTimeout(() => setShowSuccessMessage(false), 3000);
+                    } else {
+                      alert(`❌ ${data.message || 'Talep iptal edilemedi'}`);
+                    }
+                  } catch (error) {
+                    console.error('İptal hatası:', error);
+                    alert('❌ Bir hata oluştu. Lütfen tekrar deneyin.');
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading}
+              >
+                {loading ? '⏳ İptal Ediliyor...' : 'Evet, İptal Et'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Message */}
+      {showSuccessMessage && (
+        <div className="success-toast">
+          <div className="success-toast-content">
+            <div className="success-toast-icon">✅</div>
+            <div className="success-toast-text">
+              <strong>Başarılı!</strong>
+              <p>Talep başarıyla iptal edildi</p>
+            </div>
+            <button 
+              className="success-toast-close"
+              onClick={() => setShowSuccessMessage(false)}
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

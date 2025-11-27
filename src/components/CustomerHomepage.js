@@ -5,6 +5,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import './CustomerHomepage.css';
 import RealMap from './RealMap.jsx';
 import { LazyImage } from '../hooks/useLazyImage';
+import ServiceRequestDialog from './ServiceRequestDialog.jsx';
 
 function useCustomerAuth() {
   return useMemo(() => ({
@@ -54,6 +55,8 @@ export default function CustomerHomepage() {
   const [selectedService, setSelectedService] = useState(null);
   const [selectedCity, setSelectedCity] = useState('');
   const [showLocationFilter, setShowLocationFilter] = useState(false);
+  const [showRequestDialog, setShowRequestDialog] = useState(false);
+  const [requestService, setRequestService] = useState(null);
 
   const categories = [
     { id: 'all', name: 'Tümü', icon: '🔧' },
@@ -330,56 +333,21 @@ export default function CustomerHomepage() {
     }
   };
 
-  const handleServiceRequest = (serviceId, serviceName) => {
+  const handleServiceRequest = (service) => {
     if (!auth.token) {
       alert('Hizmet talep etmek için giriş yapmalısınız.');
       window.location.hash = '#/login';
       return;
     }
     
-    // Create service request
-    const confirmRequest = window.confirm(
-      `"${serviceName}" hizmet sağlayıcısından hizmet talep etmek istediğinizden emin misiniz?\n\n` +
-      `Talep gönderildikten sonra servis sağlayıcı sizinle iletişime geçecektir.`
-    );
-    
-    if (confirmRequest) {
-      createServiceRequest(serviceId, serviceName);
-    }
+    // Dialog'u aç
+    setRequestService(service);
+    setShowRequestDialog(true);
   };
 
-  const createServiceRequest = async (serviceId, serviceName) => {
-    try {
-      const response = await fetch('http://localhost:8000/api/service-requests', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${auth.token}`,
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          service_provider_id: serviceId,
-          service_type: 'general',
-          title: `${serviceName} Hizmet Talebi`,
-          description: 'Müşteri tarafından oluşturulan hizmet talebi',
-          address: 'Müşteri adresi',
-          city: 'İstanbul',
-          district: 'Merkez',
-          priority: 'medium'
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        alert(`✅ Hizmet talebiniz başarıyla gönderildi!\n\nTalep ID: ${data.data.id}\nServis sağlayıcı en kısa sürede sizinle iletişime geçecektir.`);
-      } else {
-        const errorData = await response.json();
-        alert(`❌ Hizmet talebi gönderilemedi: ${errorData.message || 'Bilinmeyen hata'}`);
-      }
-    } catch (error) {
-      console.error('Service request error:', error);
-      alert('❌ Hizmet talebi gönderilirken bir hata oluştu. Lütfen tekrar deneyin.');
-    }
+  const handleRequestSuccess = (requestData) => {
+    console.log('✅ Hizmet talebi başarıyla oluşturuldu:', requestData);
+    // Dialog otomatik olarak başarı ekranını gösterecek
   };
 
   // Haversine formula to calculate distance between two points
@@ -725,6 +693,7 @@ export default function CustomerHomepage() {
                       }
                     }}
                     onLocationSearch={handleLocationSearch}
+                    onServiceRequest={handleServiceRequest}
                   />
                 </>
               ) : (
@@ -783,7 +752,7 @@ export default function CustomerHomepage() {
                     </button>
                     <button 
                       className="customer-service-btn primary"
-                      onClick={() => handleServiceRequest(service.id, service.name)}
+                      onClick={() => handleServiceRequest(service)}
                       title="Hizmet talep et"
                     >
                       🛠️ Hizmet Talep Et
@@ -1004,7 +973,7 @@ export default function CustomerHomepage() {
                 className="service-modal-btn primary"
                 onClick={() => {
                   closeServiceModal();
-                  handleServiceRequest(selectedService.id, selectedService.name);
+                  handleServiceRequest(selectedService);
                 }}
               >
                 🛠️ Hizmet Talep Et
@@ -1020,6 +989,18 @@ export default function CustomerHomepage() {
           <p>&copy; 2024 TamirciBul. Tüm hakları saklıdır.</p>
         </div>
       </footer>
+
+      {/* Service Request Dialog */}
+      <ServiceRequestDialog
+        isOpen={showRequestDialog}
+        onClose={() => {
+          setShowRequestDialog(false);
+          setRequestService(null);
+        }}
+        service={requestService}
+        userLocation={realUserLocation}
+        onSuccess={handleRequestSuccess}
+      />
     </div>
   );
 }

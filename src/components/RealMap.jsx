@@ -122,7 +122,7 @@ const createServiceIcon = (serviceType, rating, logo) => {
   });
 };
 
-export default function RealMap({ userLocation, centerLocation, services, focusedServiceId, className = "", height = "400px", onLocationRequest, onLocationSearch }) {
+export default function RealMap({ userLocation, centerLocation, services, focusedServiceId, className = "", height = "400px", onLocationRequest, onLocationSearch, onServiceRequest }) {
   const mapRef = useRef(null);
   const [selectedService, setSelectedService] = useState(null);
   const [showServiceModal, setShowServiceModal] = useState(false);
@@ -427,29 +427,54 @@ export default function RealMap({ userLocation, centerLocation, services, focuse
                     </div>
                   )}
                   
-                  {/* Action Button */}
-                  <button 
-                    style={{
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                      color: 'white',
-                      border: 'none',
-                      padding: '8px 16px',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      fontSize: '13px',
-                      fontWeight: 'bold',
-                      width: '100%',
-                      transition: 'transform 0.2s'
-                    }}
-                    onMouseOver={(e) => e.target.style.transform = 'scale(1.02)'}
-                    onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
-                    onClick={() => {
-                      setSelectedService(service);
-                      setShowServiceModal(true);
-                    }}
-                  >
-                    👁️ Görüntüle
-                  </button>
+                  {/* Action Buttons */}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button 
+                      style={{
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        color: 'white',
+                        border: 'none',
+                        padding: '8px 16px',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        fontWeight: 'bold',
+                        flex: 1,
+                        transition: 'transform 0.2s'
+                      }}
+                      onMouseOver={(e) => e.target.style.transform = 'scale(1.02)'}
+                      onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
+                      onClick={() => {
+                        if (onServiceRequest) {
+                          onServiceRequest(service);
+                        }
+                      }}
+                    >
+                      🛠️ Talep Et
+                    </button>
+                    <button 
+                      style={{
+                        background: '#f3f4f6',
+                        color: '#374151',
+                        border: 'none',
+                        padding: '8px 16px',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        fontWeight: 'bold',
+                        flex: 1,
+                        transition: 'transform 0.2s'
+                      }}
+                      onMouseOver={(e) => e.target.style.transform = 'scale(1.02)'}
+                      onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
+                      onClick={() => {
+                        setSelectedService(service);
+                        setShowServiceModal(true);
+                      }}
+                    >
+                      👁️ Detay
+                    </button>
+                  </div>
                 </div>
               </Popup>
             </Marker>
@@ -699,14 +724,13 @@ export default function RealMap({ userLocation, centerLocation, services, focuse
                   onMouseOver={(e) => e.target.style.transform = 'scale(1.02)'}
                   onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
                   onClick={() => {
-                    const serviceName = selectedService.name || 'Bu servis sağlayıcı';
-                    if (window.confirm(`${serviceName} ile iletişime geçmek istiyor musunuz?`)) {
-                      alert('Hizmet talebi gönderildi!');
-                      setShowServiceModal(false);
+                    setShowServiceModal(false);
+                    if (onServiceRequest) {
+                      onServiceRequest(selectedService);
                     }
                   }}
                 >
-                  📞 Hizmet Talep Et
+                  🛠️ Hizmet Talep Et
                 </button>
                 <button
                   style={{

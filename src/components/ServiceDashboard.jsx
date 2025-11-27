@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import './ServiceDashboard.css';
 import './ServiceProviderProfile.css';
+import { compressImage } from '../utils/imageOptimizer';
 
 function useServiceAuth() {
   return useMemo(() => {
@@ -264,20 +265,33 @@ export default function ServiceDashboard() {
     }));
   };
 
-  const handleLogoChange = (e) => {
+  const handleLogoChange = async (e) => {
     const file = e.target.files[0];
-    if (file) {
-      if (file.size > 2048000) {
-        setProfileMessage({ type: 'error', text: 'Logo boyutu 2MB\'dan küçük olmalıdır' });
-        return;
-      }
+    if (!file) return;
+    
+    if (file.size > 2048000) {
+      setProfileMessage({ type: 'error', text: 'Logo boyutu 2MB\'dan küçük olmalıdır' });
+      return;
+    }
+    
+    try {
+      // Optimize edilmiş resmi al
+      const compressedImage = await compressImage(file, {
+        maxWidth: 400,
+        maxHeight: 400,
+        quality: 0.8,
+        format: 'image/jpeg'
+      });
       
-      setLogoFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLogoPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
+      // Blob'a çevir (FormData için)
+      const blob = await fetch(compressedImage).then(r => r.blob());
+      const optimizedFile = new File([blob], file.name, { type: 'image/jpeg' });
+      
+      setLogoFile(optimizedFile);
+      setLogoPreview(compressedImage);
+    } catch (error) {
+      console.error('Logo sıkıştırma hatası:', error);
+      setProfileMessage({ type: 'error', text: 'Logo işlenirken hata oluştu' });
     }
   };
 

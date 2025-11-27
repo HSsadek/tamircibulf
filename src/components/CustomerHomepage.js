@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import './CustomerHomepage.css';
 import RealMap from './RealMap.jsx';
+import { LazyImage } from '../hooks/useLazyImage';
 
 function useCustomerAuth() {
   return useMemo(() => ({
@@ -741,7 +742,11 @@ export default function CustomerHomepage() {
                   <div className="customer-service-header">
                     <div className="customer-service-image">
                       {service.logo ? (
-                        <img src={service.logo} alt={service.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
+                        <LazyImage 
+                          src={service.logo} 
+                          alt={service.name} 
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} 
+                        />
                       ) : (
                         service.image
                       )}

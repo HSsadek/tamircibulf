@@ -54,12 +54,44 @@ export default function UnifiedLogin() {
       
       if (!res.ok) {
         console.error('Login failed with status:', res.status, 'Data:', data);
-        let errMsg = data?.message || '';
-        if (!errMsg && Array.isArray(data?.errors)) errMsg = data.errors.join(', ');
-        else if (!errMsg && data?.errors && typeof data.errors === 'object') {
-          errMsg = Object.values(data.errors).flat().join(' \n ');
+        
+        // Format error messages for user display
+        let errMsg = '';
+        
+        if (data?.message) {
+          errMsg = data.message;
         }
-        if (!errMsg) errMsg = `Giriş başarısız (HTTP ${res.status}). ${responseText || 'Bilinmeyen hata'}`;
+        
+        // Handle validation errors
+        if (data?.errors && typeof data.errors === 'object') {
+          const errorMessages = [];
+          for (const [field, messages] of Object.entries(data.errors)) {
+            if (Array.isArray(messages)) {
+              errorMessages.push(...messages);
+            } else {
+              errorMessages.push(messages);
+            }
+          }
+          if (errorMessages.length > 0) {
+            errMsg = errorMessages.join('\n');
+          }
+        } else if (Array.isArray(data?.errors)) {
+          errMsg = data.errors.join('\n');
+        }
+        
+        // Default error messages based on status code
+        if (!errMsg) {
+          if (res.status === 401) {
+            errMsg = 'E-posta veya şifre hatalı. Lütfen tekrar deneyin.';
+          } else if (res.status === 422) {
+            errMsg = 'Girdiğiniz bilgiler geçersiz. Lütfen kontrol edin.';
+          } else if (res.status === 500) {
+            errMsg = 'Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.';
+          } else {
+            errMsg = `Giriş başarısız. Lütfen bilgilerinizi kontrol edin.`;
+          }
+        }
+        
         throw new Error(errMsg);
       }
 
@@ -202,7 +234,11 @@ export default function UnifiedLogin() {
             </div>
             
             {error && (
-              <div className="unified-error">{error}</div>
+              <div className="unified-error">
+                {error.split('\n').map((line, index) => (
+                  <div key={index}>{line}</div>
+                ))}
+              </div>
             )}
           </form>
           

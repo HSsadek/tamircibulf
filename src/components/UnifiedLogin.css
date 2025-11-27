@@ -193,6 +193,19 @@
   font-size: 14px;
   margin-top: 16px;
   border: 1px solid rgba(239, 68, 68, 0.2);
+  line-height: 1.6;
+}
+
+.unified-error div {
+  margin: 4px 0;
+}
+
+.unified-error div:first-child {
+  margin-top: 0;
+}
+
+.unified-error div:last-child {
+  margin-bottom: 0;
 }
 
 /* Footer */

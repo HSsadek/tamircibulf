@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import './CustomerDashboard.css';
+import { compressImage } from '../utils/imageOptimizer';
 
 function useCustomerAuth() {
   return useMemo(() => ({
@@ -113,82 +114,55 @@ export default function CustomerDashboard() {
 
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        alert('Dosya boyutu 2MB\'dan küçük olmalıdır.');
-        return;
-      }
+    if (!file) return;
+    
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Dosya boyutu 2MB\'dan küçük olmalıdır.');
+      return;
+    }
+    
+    try {
+      // Optimize edilmiş resmi al
+      const imageData = await compressImage(file, {
+        maxWidth: 400,
+        maxHeight: 400,
+        quality: 0.7,
+        format: 'image/jpeg'
+      });
       
-      // Resmi sıkıştır
-      const img = new Image();
-      img.onload = async () => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
+      // Hemen göster (localStorage'a kaydetmeden)
+      setProfileImage(imageData);
+      
+      // Backend'e kaydet
+      const res = await fetch('http://localhost:8000/api/auth/profile', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${auth.token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ profile_image: imageData })
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        // Update local storage with new user data
+        localStorage.setItem('user_data', JSON.stringify(data.data.user));
+        localStorage.setItem('customer_user', JSON.stringify(data.data.user));
         
-        // Maksimum boyut 400x400
-        let width = img.width;
-        let height = img.height;
-        const maxSize = 400;
-        
-        if (width > height) {
-          if (width > maxSize) {
-            height *= maxSize / width;
-            width = maxSize;
-          }
-        } else {
-          if (height > maxSize) {
-            width *= maxSize / height;
-            height = maxSize;
-          }
-        }
-        
-        canvas.width = width;
-        canvas.height = height;
-        ctx.drawImage(img, 0, 0, width, height);
-        
-        // JPEG formatında, %70 kalitede sıkıştır
-        const imageData = canvas.toDataURL('image/jpeg', 0.7);
-        setProfileImage(imageData);
-        
-        console.log('📸 Orijinal boyut:', file.size, 'bytes');
-        console.log('📸 Sıkıştırılmış boyut:', imageData.length, 'bytes');
-        
-        // Kullanıcıya özel key ile localStorage'a kaydet
+        // Kullanıcıya özel key ile localStorage'a kaydet (sadece başarılı olursa)
         const userKey = `customer_profile_image_${auth.user?.id}`;
         localStorage.setItem(userKey, imageData);
         
-        // Backend'e de kaydet
-        try {
-          const res = await fetch('http://localhost:8000/api/auth/profile', {
-            method: 'PUT',
-            headers: {
-              'Authorization': `Bearer ${auth.token}`,
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify({ profile_image: imageData })
-          });
-          
-          if (res.ok) {
-            const data = await res.json();
-            // Update local storage with new user data
-            localStorage.setItem('user_data', JSON.stringify(data.data.user));
-            localStorage.setItem('customer_user', JSON.stringify(data.data.user));
-            alert('✅ Profil fotoğrafı başarıyla yüklendi!');
-          } else {
-            alert('❌ Profil fotoğrafı yüklenirken hata oluştu.');
-          }
-        } catch (err) {
-          console.error('Error uploading profile image:', err);
-          alert('❌ Profil fotoğrafı yüklenirken hata oluştu.');
-        }
-      };
-      
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        img.src = e.target.result;
-      };
-      reader.readAsDataURL(file);
+        alert('✅ Profil fotoğrafı başarıyla yüklendi!');
+      } else {
+        alert('❌ Profil fotoğrafı yüklenirken hata oluştu.');
+        setProfileImage(null); // Hata durumunda geri al
+      }
+    } catch (err) {
+      console.error('Error uploading profile image:', err);
+      alert('❌ Profil fotoğrafı yüklenirken hata oluştu: ' + err.message);
+      setProfileImage(null); // Hata durumunda geri al
     }
   };
 

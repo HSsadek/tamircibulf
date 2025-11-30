@@ -50,8 +50,11 @@ export default function ServiceDashboard() {
     totalRequests: 0,
     pendingRequests: 0,
     completedJobs: 0,
+    reviews: 0,
     complaints: 0
   });
+  const [reviews, setReviews] = useState([]);
+  const [complaints, setComplaints] = useState([]);
   
   // Notification states
   const [notifications, setNotifications] = useState([]);
@@ -151,6 +154,7 @@ export default function ServiceDashboard() {
     console.log('ServiceDashboard mounted');
     console.log('Auth token:', auth.token ? 'Present' : 'Missing');
     console.log('Auth user:', auth.user);
+    console.log('User ID:', auth.user?.id);
     
     if (!auth.token) {
       console.log('No service token, redirecting to login');
@@ -166,7 +170,9 @@ export default function ServiceDashboard() {
         setLoading(true);
         setError('');
         
-        console.log('Fetching dashboard data with token:', auth.token);
+        console.log('🚀 FETCHING DASHBOARD DATA');
+        console.log('🔑 Token:', auth.token);
+        console.log('👤 User ID:', auth.user?.id);
         
         // Fetch service dashboard data
         const dashboardRes = await fetch('http://localhost:8000/api/service/dashboard', {
@@ -187,6 +193,7 @@ export default function ServiceDashboard() {
               totalRequests: 0,
               pendingRequests: 0,
               completedJobs: 0,
+              reviews: 0,
               complaints: 0
             });
           }
@@ -204,14 +211,38 @@ export default function ServiceDashboard() {
           }
         });
         
-        console.log('Requests response status:', requestsRes.status);
+        console.log('📋 Requests response status:', requestsRes.status);
         
         if (requestsRes.ok) {
           const requestsData = await requestsRes.json();
-          console.log('Requests data received:', requestsData);
-          setRequests(requestsData?.data || requestsData?.requests || []);
+          console.log('📋 Requests data received:', requestsData);
+          const allRequests = requestsData?.data || requestsData?.requests || [];
+          console.log('📋 Total requests:', allRequests.length);
+          
+          // Debug each request
+          allRequests.forEach((req, index) => {
+            console.log(`Request ${index + 1}:`, {
+              id: req.id,
+              title: req.title,
+              rating: req.rating,
+              has_complaint: req.has_complaint,
+              service_provider_id: req.service_provider_id
+            });
+          });
+          
+          setRequests(allRequests);
+          
+          // Extract reviews and complaints from requests
+          const reviewsList = allRequests.filter(r => r.rating && r.rating > 0);
+          const complaintsList = allRequests.filter(r => r.has_complaint);
+          
+          console.log('⭐ Reviews List:', reviewsList);
+          console.log('⚠️ Complaints List:', complaintsList);
+          
+          setReviews(reviewsList);
+          setComplaints(complaintsList);
         } else {
-          console.error('Requests API error:', await requestsRes.json());
+          console.error('❌ Requests API error:', await requestsRes.json());
         }
         
         // Fetch notifications
@@ -259,7 +290,22 @@ export default function ServiceDashboard() {
       
       if (requestsRes.ok) {
         const requestsData = await requestsRes.json();
-        setRequests(requestsData?.data || requestsData?.requests || []);
+        const allRequests = requestsData?.data || requestsData?.requests || [];
+        setRequests(allRequests);
+        
+        console.log('📊 All Requests:', allRequests);
+        console.log('📊 Requests with rating:', allRequests.filter(r => r.rating));
+        console.log('📊 Requests with complaints:', allRequests.filter(r => r.has_complaint));
+        
+        // Extract reviews and complaints from requests
+        const reviewsList = allRequests.filter(r => r.rating && r.rating > 0);
+        const complaintsList = allRequests.filter(r => r.has_complaint);
+        
+        console.log('⭐ Reviews List:', reviewsList);
+        console.log('⚠️ Complaints List:', complaintsList);
+        
+        setReviews(reviewsList);
+        setComplaints(complaintsList);
       }
       
     } catch (err) {
@@ -618,6 +664,7 @@ export default function ServiceDashboard() {
     switch (activeTab) {
       case 'overview': return 'Genel Bakış';
       case 'requests': return 'Gelen Talepler';
+      case 'reviews': return 'Değerlendirmeler';
       case 'complaints': return 'Müşteri Şikayetleri';
       case 'profile': return 'Profil Ayarları';
       default: return 'Dashboard';
@@ -680,6 +727,13 @@ export default function ServiceDashboard() {
           >
             <span className="service-nav-icon">📋</span>
             Gelen Talepler
+          </button>
+          <button 
+            className={`service-nav-item ${activeTab === 'reviews' ? 'active' : ''}`}
+            onClick={() => setActiveTab('reviews')}
+          >
+            <span className="service-nav-icon">⭐</span>
+            Değerlendirmeler
           </button>
           <button 
             className={`service-nav-item ${activeTab === 'complaints' ? 'active' : ''}`}
@@ -819,6 +873,15 @@ export default function ServiceDashboard() {
                   <div className="service-stat-info">
                     <div className="service-stat-number">{stats.completedJobs}</div>
                     <div className="service-stat-label">Tamamlanan İş</div>
+                  </div>
+                </div>
+                <div className="service-stat-card modern">
+                  <div className="service-stat-icon-wrapper purple">
+                    <div className="service-stat-icon">⭐</div>
+                  </div>
+                  <div className="service-stat-info">
+                    <div className="service-stat-number">{stats.reviews || 0}</div>
+                    <div className="service-stat-label">Değerlendirme</div>
                   </div>
                 </div>
                 <div className="service-stat-card modern">
@@ -1039,285 +1102,442 @@ export default function ServiceDashboard() {
             </div>
           )}
 
-          {/* Complaints Tab */}
-          {activeTab === 'complaints' && !loading && (
-            <div className="service-complaints">
-              <div className="service-card">
-                <div className="service-card-header">
-                  <h2 className="service-card-title">Müşteri Şikayetleri</h2>
+          {/* Reviews Tab */}
+          {activeTab === 'reviews' && !loading && (
+            <div className="service-reviews modern">
+              {reviews.length === 0 ? (
+                <div className="service-empty-state">
+                  <div className="service-empty-icon">⭐</div>
+                  <h3>Henüz değerlendirme yok</h3>
+                  <p>Müşterileriniz hizmetlerinizi değerlendirdiğinde burada görünecek.</p>
                 </div>
-                <div className="service-card-body">
-                  <div className="service-complaints-info">
-                    <div className="service-info-box">
-                      <span className="service-info-icon">ℹ️</span>
-                      <p>Müşteriler, hizmetinizden memnun kalmadıklarında buradan şikayet oluşturabilirler. 
-                      Şikayetleri dikkate alarak hizmet kalitenizi artırabilirsiniz.</p>
+              ) : (
+                <div className="service-reviews-list">
+                  <div className="reviews-list-header">
+                    <h3>Toplam {reviews.length} Değerlendirme</h3>
+                    <div className="average-rating">
+                      <span className="avg-rating-number">
+                        {(reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)}
+                      </span>
+                      <span className="avg-rating-stars">⭐</span>
                     </div>
                   </div>
                   
-                  {stats.complaints === 0 ? (
-                    <div className="service-empty-state">
-                      <div className="service-empty-icon">✅</div>
-                      <h3>Harika! Henüz şikayet yok</h3>
-                      <p>Müşterileriniz hizmetinizden memnun görünüyor.</p>
-                    </div>
-                  ) : (
-                    <div className="service-complaints-list">
-                      {/* Şikayetler burada listelenecek */}
-                      <div className="service-complaint-card">
-                        <div className="service-complaint-header">
-                          <div className="service-complaint-user">
-                            <div className="service-complaint-avatar">M</div>
-                            <div>
-                              <div className="service-complaint-name">Müşteri Adı</div>
-                              <div className="service-complaint-date">25 Kasım 2025</div>
+                  {reviews.map(review => {
+                    const customerName = review.customer?.name || 'Müşteri';
+                    const customerPhone = review.customer?.phone || 'Belirtilmemiş';
+                    const profileImage = review.customer?.customer?.profile_image;
+                    const imageSrc = profileImage 
+                      ? (profileImage.startsWith('data:') 
+                          ? profileImage 
+                          : `http://localhost:8000/storage/${profileImage}`)
+                      : null;
+                    
+                    return (
+                      <div key={review.id} className="service-review-row">
+                        <div className="review-row-left">
+                          <div className="review-customer-avatar">
+                            {imageSrc ? (
+                              <img 
+                                src={imageSrc} 
+                                alt={customerName}
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                  e.target.nextSibling.style.display = 'flex';
+                                }}
+                              />
+                            ) : null}
+                            <span style={{ display: imageSrc ? 'none' : 'flex' }}>
+                              {customerName.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="review-customer-info">
+                            <div className="review-customer-name">{customerName}</div>
+                            <div className="review-customer-phone">📞 {customerPhone}</div>
+                            <div className="review-date">
+                              {new Date(review.rated_at || review.created_at).toLocaleDateString('tr-TR', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })}
                             </div>
                           </div>
-                          <span className="service-complaint-status pending">Beklemede</span>
                         </div>
-                        <div className="service-complaint-content">
-                          <h4>Şikayet Konusu</h4>
-                          <p>Şikayet detayları burada görünecek...</p>
+                        
+                        <div className="review-row-center">
+                          <div className="review-rating-stars">
+                            {[...Array(5)].map((_, i) => (
+                              <span key={i} className={`star ${i < review.rating ? 'filled' : ''}`}>
+                                {i < review.rating ? '⭐' : '☆'}
+                              </span>
+                            ))}
+                          </div>
+                          <h4 className="review-title">{review.title}</h4>
+                          {review.rating_comment && (
+                            <p className="review-comment">{review.rating_comment}</p>
+                          )}
                         </div>
-                        <div className="service-complaint-actions">
-                          <button className="service-btn service-btn-primary">Yanıtla</button>
-                          <button className="service-btn service-btn-success">Çözüldü Olarak İşaretle</button>
+                        
+                        <div className="review-row-right">
+                          <span className="review-location">
+                            📍 {review.district}, {review.city}
+                          </span>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })}
                 </div>
-              </div>
+              )}
+            </div>
+          )}
+
+          {/* Complaints Tab */}
+          {activeTab === 'complaints' && !loading && (
+            <div className="service-complaints modern">
+              {complaints.length === 0 ? (
+                <div className="service-empty-state">
+                  <div className="service-empty-icon">✅</div>
+                  <h3>Harika! Henüz şikayet yok</h3>
+                  <p>Müşterileriniz hizmetinizden memnun görünüyor.</p>
+                </div>
+              ) : (
+                <div className="service-complaints-list">
+                  <div className="complaints-list-header">
+                    <h3>Toplam {complaints.length} Şikayet</h3>
+                    <div className="complaints-warning-badge">
+                      <span className="warning-icon">⚠️</span>
+                      <span>Dikkat Gerekli</span>
+                    </div>
+                  </div>
+                  
+                  {complaints.map(complaint => {
+                    const customerName = complaint.customer?.name || 'Müşteri';
+                    const customerPhone = complaint.customer?.phone || 'Belirtilmemiş';
+                    const profileImage = complaint.customer?.customer?.profile_image;
+                    const imageSrc = profileImage 
+                      ? (profileImage.startsWith('data:') 
+                          ? profileImage 
+                          : `http://localhost:8000/storage/${profileImage}`)
+                      : null;
+                    
+                    const reasonLabels = {
+                      'poor_service': 'Kötü Hizmet Kalitesi',
+                      'late_arrival': 'Geç Geldi',
+                      'no_show': 'Gelmedi',
+                      'unprofessional': 'Profesyonel Olmayan Davranış',
+                      'overpricing': 'Fahiş Fiyat',
+                      'incomplete_work': 'Eksik İş',
+                      'damage': 'Hasar Verdi',
+                      'other': 'Diğer'
+                    };
+                    
+                    return (
+                      <div key={complaint.id} className="service-complaint-row">
+                        <div className="complaint-row-left">
+                          <div className="complaint-customer-avatar">
+                            {imageSrc ? (
+                              <img 
+                                src={imageSrc} 
+                                alt={customerName}
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                  e.target.nextSibling.style.display = 'flex';
+                                }}
+                              />
+                            ) : null}
+                            <span style={{ display: imageSrc ? 'none' : 'flex' }}>
+                              {customerName.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="complaint-customer-info">
+                            <div className="complaint-customer-name">{customerName}</div>
+                            <div className="complaint-customer-phone">📞 {customerPhone}</div>
+                            <div className="complaint-date">
+                              {new Date(complaint.complaint_date || complaint.created_at).toLocaleDateString('tr-TR', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="complaint-row-center">
+                          <div className="complaint-warning-badge-inline">
+                            <span className="warning-icon">⚠️</span>
+                            <span className="complaint-reason-tag">
+                              {reasonLabels[complaint.complaint_reason] || complaint.complaint_reason}
+                            </span>
+                          </div>
+                          <h4 className="complaint-title">{complaint.title}</h4>
+                          {complaint.complaint_description && (
+                            <p className="complaint-description">{complaint.complaint_description}</p>
+                          )}
+                        </div>
+                        
+                        <div className="complaint-row-right">
+                          <span className="complaint-location">
+                            📍 {complaint.district}, {complaint.city}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
           {/* Profile Tab */}
           {activeTab === 'profile' && !loading && (
-            <div className="service-profile-tab">
+            <div className="service-profile-tab modern">
               {profileLoading ? (
-                <div style={{ textAlign: 'center', padding: '40px' }}>
-                  <div className="spinner"></div>
-                  <p>Profil yükleniyor...</p>
+                <div className="service-loading">
+                  <div className="service-loading-spinner"></div>
+                  <p className="service-loading-text">Profil yükleniyor...</p>
                 </div>
               ) : (
                 <>
                   {profileMessage.text && (
-                    <div className={`message ${profileMessage.type}`}>
+                    <div className={`service-profile-message ${profileMessage.type}`}>
+                      <span className="message-icon">
+                        {profileMessage.type === 'success' ? '✓' : '✕'}
+                      </span>
                       {profileMessage.text}
                     </div>
                   )}
 
-                  <div className="profile-container-inline">
-                    {/* Logo Section */}
-                    <div className="profile-section logo-section">
-                      <h2>Firma Logosu / Fotoğrafı</h2>
-                      <div className="logo-upload-area">
-                        {logoPreview ? (
-                          <div className="logo-preview">
-                            <img src={logoPreview} alt="Logo" />
-                            <div className="logo-actions">
-                              {logoFile && (
-                                <button 
-                                  onClick={handleLogoUpload} 
-                                  disabled={uploadingLogo}
-                                  className="btn-upload"
-                                >
-                                  {uploadingLogo ? 'Yükleniyor...' : 'Yükle'}
-                                </button>
-                              )}
-                              <button onClick={handleLogoDelete} className="btn-delete">
-                                Sil
+                  <div className="service-profile-grid">
+                    {/* Logo Card */}
+                    <div className="service-profile-card logo-card">
+                      <div className="profile-card-header">
+                        <h3>📷 Firma Logosu</h3>
+                      </div>
+                      <div className="profile-card-body">
+                        <div className="modern-logo-upload">
+                          <div className="logo-preview-container">
+                            {logoPreview ? (
+                              <img src={logoPreview} alt="Logo" className="logo-image" />
+                            ) : (
+                              <div className="logo-empty">
+                                <span className="logo-empty-icon">📷</span>
+                                <p>Logo Yok</p>
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="logo-controls">
+                            <input
+                              type="file"
+                              id="modern-logo-input"
+                              accept="image/*"
+                              onChange={handleLogoChange}
+                              style={{ display: 'none' }}
+                            />
+                            <label htmlFor="modern-logo-input" className="btn-modern btn-primary">
+                              📷 {logoPreview ? 'Değiştir' : 'Logo Seç'}
+                            </label>
+                            
+                            {logoFile && (
+                              <button 
+                                onClick={handleLogoUpload} 
+                                disabled={uploadingLogo}
+                                className="btn-modern btn-success"
+                              >
+                                {uploadingLogo ? '⏳ Yükleniyor...' : '✓ Yükle'}
                               </button>
-                            </div>
+                            )}
+                            
+                            {logoPreview && !logoFile && (
+                              <button 
+                                onClick={handleLogoDelete}
+                                className="btn-modern btn-danger"
+                              >
+                                🗑️ Sil
+                              </button>
+                            )}
                           </div>
-                        ) : (
-                          <div className="logo-placeholder">
-                            <span>📷</span>
-                            <p>Logo yok</p>
-                          </div>
-                        )}
-                        <input
-                          type="file"
-                          id="logo-input"
-                          accept="image/*"
-                          onChange={handleLogoChange}
-                          style={{ display: 'none' }}
-                        />
-                        <label htmlFor="logo-input" className="btn-select-logo">
-                          {logoPreview ? 'Logoyu Değiştir' : 'Logo Seç'}
-                        </label>
-                        <p className="logo-hint">Maksimum 2MB, JPG, PNG veya GIF</p>
+                          
+                          <p className="logo-info">
+                            <span className="info-icon">ℹ️</span>
+                            Maksimum 2MB • JPG, PNG veya GIF
+                          </p>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Profile Form */}
-                    <form onSubmit={handleProfileSubmit} className="profile-form">
-                      <div className="profile-section">
-                        <h2>Firma Bilgileri</h2>
-                        <div className="form-grid">
-                          <div className="form-group">
-                            <label>Firma Adı *</label>
-                            <input
-                              type="text"
-                              name="company_name"
-                              value={profile.company_name || ''}
-                              onChange={handleInputChange}
-                              required
-                              placeholder="Firma adınızı girin"
-                            />
+                    {/* Company Info Card */}
+                    <div className="service-profile-card">
+                      <div className="profile-card-header">
+                        <h3>🏢 Firma Bilgileri</h3>
+                      </div>
+                      <div className="profile-card-body">
+                        <form onSubmit={handleProfileSubmit} className="modern-profile-form">
+                          <div className="form-grid">
+                            <div className="form-group">
+                              <label>Firma Adı *</label>
+                              <input
+                                type="text"
+                                name="company_name"
+                                value={profile.company_name || ''}
+                                onChange={handleInputChange}
+                                required
+                                placeholder="Firma adınızı girin"
+                              />
+                            </div>
+
+                            <div className="form-group">
+                              <label>Hizmet Türü *</label>
+                              <select
+                                name="service_type"
+                                value={profile.service_type || ''}
+                                onChange={handleInputChange}
+                                required
+                                disabled
+                              >
+                                <option value="">Seçiniz</option>
+                                {serviceTypes.map(type => (
+                                  <option key={type.value} value={type.value}>
+                                    {type.label}
+                                  </option>
+                                ))}
+                              </select>
+                              <small>Hizmet türü değiştirilemez</small>
+                            </div>
+
+                            <div className="form-group full-width">
+                              <label>Açıklama</label>
+                              <textarea
+                                name="description"
+                                value={profile.description || ''}
+                                onChange={handleInputChange}
+                                rows="4"
+                                placeholder="Firmanız hakkında bilgi verin"
+                              />
+                            </div>
                           </div>
 
-                          <div className="form-group">
-                            <label>Hizmet Türü *</label>
-                            <select
-                              name="service_type"
-                              value={profile.service_type || ''}
-                              onChange={handleInputChange}
-                              required
-                              disabled
+                          <div className="profile-section">
+                            <h2>İletişim Bilgileri</h2>
+                            <div className="form-grid">
+                              <div className="form-group">
+                                <label>Telefon</label>
+                                <input
+                                  type="tel"
+                                  name="phone"
+                                  value={profile.phone || ''}
+                                  onChange={handleInputChange}
+                                  placeholder="0555 123 45 67"
+                                />
+                              </div>
+
+                              <div className="form-group">
+                                <label>Şehir</label>
+                                <select
+                                  name="city"
+                                  value={profile.city || ''}
+                                  onChange={handleInputChange}
+                                >
+                                  <option value="">Seçiniz</option>
+                                  {cities.map(city => (
+                                    <option key={city} value={city}>
+                                      {city}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              <div className="form-group">
+                                <label>İlçe</label>
+                                <input
+                                  type="text"
+                                  name="district"
+                                  value={profile.district || ''}
+                                  onChange={handleInputChange}
+                                  placeholder="İlçe adı"
+                                />
+                              </div>
+
+                              <div className="form-group full-width">
+                                <label>Adres</label>
+                                <textarea
+                                  name="address"
+                                  value={profile.address || ''}
+                                  onChange={handleInputChange}
+                                  rows="3"
+                                  placeholder="Tam adresinizi girin"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="profile-section">
+                            <h2>Çalışma Bilgileri</h2>
+                            <div className="form-grid">
+                              <div className="form-group full-width">
+                                <label>Çalışma Saatleri</label>
+                                <input
+                                  type="text"
+                                  name="working_hours"
+                                  value={profile.working_hours || ''}
+                                  onChange={handleInputChange}
+                                  placeholder="Örn: Pazartesi-Cuma 09:00-18:00"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="profile-section">
+                            <h2>Konum Bilgileri</h2>
+                            <div className="form-grid">
+                              <div className="form-group">
+                                <label>Enlem (Latitude)</label>
+                                <input
+                                  type="number"
+                                  step="0.000001"
+                                  name="latitude"
+                                  value={profile.latitude || ''}
+                                  onChange={handleInputChange}
+                                  placeholder="41.0082"
+                                />
+                              </div>
+
+                              <div className="form-group">
+                                <label>Boylam (Longitude)</label>
+                                <input
+                                  type="number"
+                                  step="0.000001"
+                                  name="longitude"
+                                  value={profile.longitude || ''}
+                                  onChange={handleInputChange}
+                                  placeholder="28.9784"
+                                />
+                              </div>
+                            </div>
+                            <p className="hint">
+                              💡 Konum bilgilerini haritadan otomatik almak için Google Maps'ten koordinatlarınızı kopyalayabilirsiniz
+                            </p>
+                          </div>
+
+                          <div className="form-actions">
+                            <button 
+                              type="button" 
+                              className="btn-cancel"
+                              onClick={() => setActiveTab('overview')}
                             >
-                              <option value="">Seçiniz</option>
-                              {serviceTypes.map(type => (
-                                <option key={type.value} value={type.value}>
-                                  {type.label}
-                                </option>
-                              ))}
-                            </select>
-                            <small>Hizmet türü değiştirilemez</small>
-                          </div>
-
-                          <div className="form-group full-width">
-                            <label>Açıklama</label>
-                            <textarea
-                              name="description"
-                              value={profile.description || ''}
-                              onChange={handleInputChange}
-                              rows="4"
-                              placeholder="Firmanız hakkında bilgi verin"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="profile-section">
-                        <h2>İletişim Bilgileri</h2>
-                        <div className="form-grid">
-                          <div className="form-group">
-                            <label>Telefon</label>
-                            <input
-                              type="tel"
-                              name="phone"
-                              value={profile.phone || ''}
-                              onChange={handleInputChange}
-                              placeholder="0555 123 45 67"
-                            />
-                          </div>
-
-                          <div className="form-group">
-                            <label>Şehir</label>
-                            <select
-                              name="city"
-                              value={profile.city || ''}
-                              onChange={handleInputChange}
+                              İptal
+                            </button>
+                            <button 
+                              type="submit" 
+                              className="btn-save"
+                              disabled={saving}
                             >
-                              <option value="">Seçiniz</option>
-                              {cities.map(city => (
-                                <option key={city} value={city}>
-                                  {city}
-                                </option>
-                              ))}
-                            </select>
+                              {saving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
+                            </button>
                           </div>
-
-                          <div className="form-group">
-                            <label>İlçe</label>
-                            <input
-                              type="text"
-                              name="district"
-                              value={profile.district || ''}
-                              onChange={handleInputChange}
-                              placeholder="İlçe adı"
-                            />
-                          </div>
-
-                          <div className="form-group full-width">
-                            <label>Adres</label>
-                            <textarea
-                              name="address"
-                              value={profile.address || ''}
-                              onChange={handleInputChange}
-                              rows="3"
-                              placeholder="Tam adresinizi girin"
-                            />
-                          </div>
-                        </div>
+                        </form>
                       </div>
-
-                      <div className="profile-section">
-                        <h2>Çalışma Bilgileri</h2>
-                        <div className="form-grid">
-                          <div className="form-group full-width">
-                            <label>Çalışma Saatleri</label>
-                            <input
-                              type="text"
-                              name="working_hours"
-                              value={profile.working_hours || ''}
-                              onChange={handleInputChange}
-                              placeholder="Örn: Pazartesi-Cuma 09:00-18:00"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="profile-section">
-                        <h2>Konum Bilgileri</h2>
-                        <div className="form-grid">
-                          <div className="form-group">
-                            <label>Enlem (Latitude)</label>
-                            <input
-                              type="number"
-                              step="0.000001"
-                              name="latitude"
-                              value={profile.latitude || ''}
-                              onChange={handleInputChange}
-                              placeholder="41.0082"
-                            />
-                          </div>
-
-                          <div className="form-group">
-                            <label>Boylam (Longitude)</label>
-                            <input
-                              type="number"
-                              step="0.000001"
-                              name="longitude"
-                              value={profile.longitude || ''}
-                              onChange={handleInputChange}
-                              placeholder="28.9784"
-                            />
-                          </div>
-                        </div>
-                        <p className="hint">
-                          💡 Konum bilgilerini haritadan otomatik almak için Google Maps'ten koordinatlarınızı kopyalayabilirsiniz
-                        </p>
-                      </div>
-
-                      <div className="form-actions">
-                        <button 
-                          type="button" 
-                          className="btn-cancel"
-                          onClick={() => setActiveTab('overview')}
-                        >
-                          İptal
-                        </button>
-                        <button 
-                          type="submit" 
-                          className="btn-save"
-                          disabled={saving}
-                        >
-                          {saving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
-                        </button>
-                      </div>
-                    </form>
+                    </div>
                   </div>
                 </>
               )}

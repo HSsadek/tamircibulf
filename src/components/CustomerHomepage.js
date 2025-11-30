@@ -55,6 +55,7 @@ export default function CustomerHomepage() {
   const [selectedService, setSelectedService] = useState(null);
   const [selectedCity, setSelectedCity] = useState('');
   const [showLocationFilter, setShowLocationFilter] = useState(false);
+  const [showReviewsModal, setShowReviewsModal] = useState(false);
   const [showRequestDialog, setShowRequestDialog] = useState(false);
   const [requestService, setRequestService] = useState(null);
 
@@ -364,25 +365,42 @@ export default function CustomerHomepage() {
     return distance;
   };
 
-  const handleServiceDetails = (service) => {
-    // Calculate real distance from user's actual location
-    let serviceWithRealDistance = { ...service };
-    
-    if (realUserLocation && service.latitude && service.longitude) {
-      const realDistance = calculateDistance(
-        realUserLocation.lat,
-        realUserLocation.lng,
-        service.latitude,
-        service.longitude
-      );
-      serviceWithRealDistance.realDistance = `${Math.round(realDistance)} km`;
-      console.log(`📏 Gerçek mesafe hesaplandı: ${service.name} - ${Math.round(realDistance)} km`);
-    } else {
-      serviceWithRealDistance.realDistance = service.distance; // Fallback to API distance
+  const handleServiceDetails = async (service) => {
+    // Fetch service details with reviews
+    try {
+      const response = await fetch(`http://localhost:8000/api/services/${service.id}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        // Calculate real distance from user's actual location
+        let serviceWithDetails = { ...data.data.service };
+        
+        if (realUserLocation && serviceWithDetails.latitude && serviceWithDetails.longitude) {
+          const realDistance = calculateDistance(
+            realUserLocation.lat,
+            realUserLocation.lng,
+            serviceWithDetails.latitude,
+            serviceWithDetails.longitude
+          );
+          serviceWithDetails.realDistance = `${Math.round(realDistance)} km`;
+        } else {
+          serviceWithDetails.realDistance = service.distance;
+        }
+        
+        // Add reviews to service object
+        serviceWithDetails.reviews = data.data.reviews || [];
+        serviceWithDetails.average_rating = data.data.average_rating;
+        serviceWithDetails.total_reviews = data.data.total_reviews;
+        
+        setSelectedService(serviceWithDetails);
+        setShowServiceModal(true);
+      }
+    } catch (error) {
+      console.error('Error fetching service details:', error);
+      // Fallback to basic modal
+      setSelectedService(service);
+      setShowServiceModal(true);
     }
-    
-    setSelectedService(serviceWithRealDistance);
-    setShowServiceModal(true);
   };
 
   const closeServiceModal = () => {
@@ -851,14 +869,18 @@ export default function CustomerHomepage() {
                 <div className="service-modal-icon">
                   {selectedService.logo ? (
                     <img 
-                      src={selectedService.logo} 
+                      src={selectedService.logo.startsWith('http') ? selectedService.logo : `http://localhost:8000/storage/${selectedService.logo}`}
                       alt={selectedService.name} 
                       style={{ 
                         width: '100%', 
                         height: '100%', 
                         objectFit: 'cover', 
                         borderRadius: '12px' 
-                      }} 
+                      }}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.parentElement.innerHTML = selectedService.image || '🏢';
+                      }}
                     />
                   ) : (
                     selectedService.image
@@ -884,7 +906,18 @@ export default function CustomerHomepage() {
                     {'⭐'.repeat(Math.floor(selectedService.rating || 5))}
                   </span>
                   <span className="rating-text">
-                    {selectedService.rating || '5.0'}/5 ({selectedService.reviews || 0} değerlendirme)
+                    {selectedService.rating || '5.0'}/5 
+                    {selectedService.reviews && selectedService.reviews.length > 0 ? (
+                      <span 
+                        className="reviews-link"
+                        onClick={() => setShowReviewsModal(true)}
+                        style={{ cursor: 'pointer', color: '#3b82f6', textDecoration: 'underline', marginLeft: '4px' }}
+                      >
+                        ({selectedService.total_reviews || selectedService.reviews.length} değerlendirme)
+                      </span>
+                    ) : (
+                      <span> (0 değerlendirme)</span>
+                    )}
                   </span>
                 </div>
               </div>
@@ -977,6 +1010,102 @@ export default function CustomerHomepage() {
                 }}
               >
                 🛠️ Hizmet Talep Et
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reviews Modal */}
+      {showReviewsModal && selectedService && selectedService.reviews && (
+        <div className="service-modal-overlay" onClick={() => setShowReviewsModal(false)}>
+          <div className="reviews-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="reviews-modal-header">
+              <div>
+                <h3>⭐ Müşteri Değerlendirmeleri</h3>
+                <p className="reviews-modal-subtitle">
+                  {selectedService.name} - {selectedService.reviews.length} değerlendirme
+                </p>
+              </div>
+              <button className="service-modal-close" onClick={() => setShowReviewsModal(false)}>
+                ✕
+              </button>
+            </div>
+            
+            <div className="reviews-modal-body">
+              <div className="reviews-summary">
+                <div className="reviews-summary-score">
+                  <div className="score-number">{selectedService.rating || '5.0'}</div>
+                  <div className="score-stars">
+                    {'⭐'.repeat(Math.floor(selectedService.rating || 5))}
+                  </div>
+                  <div className="score-text">{selectedService.reviews.length} değerlendirme</div>
+                </div>
+              </div>
+
+              <div className="reviews-full-list">
+                {selectedService.reviews.map((review) => {
+                  const profileImage = review.customer?.profile_image;
+                  const imageSrc = profileImage 
+                    ? (profileImage.startsWith('data:') 
+                        ? profileImage 
+                        : `http://localhost:8000/storage/${profileImage}`)
+                    : null;
+
+                  return (
+                    <div key={review.id} className="review-item-full">
+                      <div className="review-header">
+                        <div className="review-avatar">
+                          {imageSrc ? (
+                            <img 
+                              src={imageSrc} 
+                              alt={review.customer.name}
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
+                          <span style={{ display: imageSrc ? 'none' : 'flex' }}>
+                            {review.customer.name.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="review-info">
+                          <div className="review-name">{review.customer.name}</div>
+                          <div className="review-stars">
+                            {[...Array(5)].map((_, i) => (
+                              <span key={i} className={i < review.rating ? 'star-filled' : 'star-empty'}>
+                                {i < review.rating ? '⭐' : '☆'}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="review-date">
+                          {new Date(review.rated_at).toLocaleDateString('tr-TR', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </div>
+                      </div>
+                      {review.title && (
+                        <h4 className="review-title">{review.title}</h4>
+                      )}
+                      {review.comment && (
+                        <p className="review-comment">{review.comment}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="reviews-modal-footer">
+              <button 
+                className="service-modal-btn secondary"
+                onClick={() => setShowReviewsModal(false)}
+              >
+                Kapat
               </button>
             </div>
           </div>

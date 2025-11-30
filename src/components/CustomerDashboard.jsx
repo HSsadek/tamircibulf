@@ -52,6 +52,13 @@ export default function CustomerDashboard() {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [requestToDelete, setRequestToDelete] = useState(null);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [showComplaintModal, setShowComplaintModal] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [ratingComment, setRatingComment] = useState('');
+  const [complaintReason, setComplaintReason] = useState('');
+  const [complaintDescription, setComplaintDescription] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [profileData, setProfileData] = useState({
     name: '',
     email: '',
@@ -446,6 +453,195 @@ export default function CustomerDashboard() {
       alert('Talep silinirken bir hata oluştu');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSubmitRating = async () => {
+    if (rating === 0) {
+      alert('Lütfen bir puan seçin');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const res = await fetch(`http://localhost:8000/api/services/request/${selectedRequest.id}/rate`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${auth.token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          rating: rating,
+          comment: ratingComment
+        })
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setShowRatingModal(false);
+        setRating(0);
+        setRatingComment('');
+        setSelectedRequest(null);
+        
+        // Show modern success toast
+        const toast = document.createElement('div');
+        toast.className = 'modern-toast success';
+        toast.innerHTML = `
+          <div class="toast-icon">⭐</div>
+          <div class="toast-content">
+            <div class="toast-title">Teşekkürler!</div>
+            <div class="toast-message">Değerlendirmeniz başarıyla kaydedildi</div>
+          </div>
+          <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => {
+          toast.classList.remove('show');
+          setTimeout(() => toast.remove(), 300);
+        }, 3000);
+        
+        fetchMyRequests();
+      } else {
+        // Show error toast
+        const toast = document.createElement('div');
+        toast.className = 'modern-toast error';
+        toast.innerHTML = `
+          <div class="toast-icon">❌</div>
+          <div class="toast-content">
+            <div class="toast-title">Hata!</div>
+            <div class="toast-message">${data.message || 'Değerlendirme kaydedilemedi'}</div>
+          </div>
+          <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => {
+          toast.classList.remove('show');
+          setTimeout(() => toast.remove(), 300);
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Rating error:', error);
+      
+      // Show error toast
+      const toast = document.createElement('div');
+      toast.className = 'modern-toast error';
+      toast.innerHTML = `
+        <div class="toast-icon">❌</div>
+        <div class="toast-content">
+          <div class="toast-title">Hata!</div>
+          <div class="toast-message">Değerlendirme gönderilirken bir hata oluştu</div>
+        </div>
+        <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
+      `;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.classList.add('show'), 10);
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSubmitComplaint = async () => {
+    if (!complaintReason.trim()) {
+      alert('Lütfen şikayet sebebini seçin');
+      return;
+    }
+
+    if (!complaintDescription.trim()) {
+      alert('Lütfen şikayet açıklaması yazın');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const res = await fetch(`http://localhost:8000/api/services/request/${selectedRequest.id}/complaint`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${auth.token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          reason: complaintReason,
+          description: complaintDescription
+        })
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setShowComplaintModal(false);
+        setComplaintReason('');
+        setComplaintDescription('');
+        setSelectedRequest(null);
+        
+        // Show modern success toast
+        const toast = document.createElement('div');
+        toast.className = 'modern-toast warning';
+        toast.innerHTML = `
+          <div class="toast-icon">⚠️</div>
+          <div class="toast-content">
+            <div class="toast-title">Şikayet Alındı</div>
+            <div class="toast-message">Şikayetiniz incelemeye alındı, en kısa sürede dönüş yapılacak</div>
+          </div>
+          <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => {
+          toast.classList.remove('show');
+          setTimeout(() => toast.remove(), 300);
+        }, 4000);
+        
+        fetchMyRequests();
+      } else {
+        // Show error toast
+        const toast = document.createElement('div');
+        toast.className = 'modern-toast error';
+        toast.innerHTML = `
+          <div class="toast-icon">❌</div>
+          <div class="toast-content">
+            <div class="toast-title">Hata!</div>
+            <div class="toast-message">${data.message || 'Şikayet kaydedilemedi'}</div>
+          </div>
+          <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => {
+          toast.classList.remove('show');
+          setTimeout(() => toast.remove(), 300);
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Complaint error:', error);
+      
+      // Show error toast
+      const toast = document.createElement('div');
+      toast.className = 'modern-toast error';
+      toast.innerHTML = `
+        <div class="toast-icon">❌</div>
+        <div class="toast-content">
+          <div class="toast-title">Hata!</div>
+          <div class="toast-message">Şikayet gönderilirken bir hata oluştu</div>
+        </div>
+        <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
+      `;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.classList.add('show'), 10);
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -907,6 +1103,28 @@ export default function CustomerDashboard() {
                           ❌ İptal Et
                         </button>
                       )}
+                      {request.status === 'accepted' && (
+                        <>
+                          <button 
+                            className="btn-rate"
+                            onClick={() => {
+                              setSelectedRequest(request);
+                              setShowRatingModal(true);
+                            }}
+                          >
+                            ⭐ Değerlendir
+                          </button>
+                          <button 
+                            className="btn-complaint"
+                            onClick={() => {
+                              setSelectedRequest(request);
+                              setShowComplaintModal(true);
+                            }}
+                          >
+                            ⚠️ Şikayet Et
+                          </button>
+                        </>
+                      )}
                       {(request.status === 'rejected' || request.status === 'cancelled') && (
                         <button 
                           className="btn-delete"
@@ -1244,6 +1462,154 @@ export default function CustomerDashboard() {
                 disabled={loading}
               >
                 {loading ? '⏳ İptal Ediliyor...' : 'Evet, İptal Et'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rating Modal */}
+      {showRatingModal && selectedRequest && (
+        <div className="modal-overlay" onClick={() => setShowRatingModal(false)}>
+          <div className="modal-content rating-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>⭐ Hizmeti Değerlendir</h2>
+              <button className="modal-close" onClick={() => setShowRatingModal(false)}>✕</button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="rating-service-info">
+                <h3>{selectedRequest.title}</h3>
+                <p>{selectedRequest.service_provider?.company_name || selectedRequest.service_provider?.name}</p>
+              </div>
+
+              <div className="rating-stars">
+                <p className="rating-label">Hizmet kalitesini değerlendirin:</p>
+                <div className="stars-container">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      className={`star-btn ${rating >= star ? 'active' : ''}`}
+                      onClick={() => setRating(star)}
+                    >
+                      {rating >= star ? '⭐' : '☆'}
+                    </button>
+                  ))}
+                </div>
+                <p className="rating-text">
+                  {rating === 0 && 'Puan seçin'}
+                  {rating === 1 && '😞 Çok Kötü'}
+                  {rating === 2 && '😕 Kötü'}
+                  {rating === 3 && '😐 Orta'}
+                  {rating === 4 && '😊 İyi'}
+                  {rating === 5 && '🤩 Mükemmel'}
+                </p>
+              </div>
+
+              <div className="rating-comment">
+                <label>Yorumunuz (İsteğe bağlı):</label>
+                <textarea
+                  value={ratingComment}
+                  onChange={(e) => setRatingComment(e.target.value)}
+                  placeholder="Deneyiminizi paylaşın..."
+                  rows={4}
+                />
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button 
+                className="btn-secondary"
+                onClick={() => {
+                  setShowRatingModal(false);
+                  setRating(0);
+                  setRatingComment('');
+                }}
+                disabled={submitting}
+              >
+                İptal
+              </button>
+              <button 
+                className="btn-primary"
+                onClick={handleSubmitRating}
+                disabled={submitting || rating === 0}
+              >
+                {submitting ? '⏳ Gönderiliyor...' : '✅ Değerlendirmeyi Gönder'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Complaint Modal */}
+      {showComplaintModal && selectedRequest && (
+        <div className="modal-overlay" onClick={() => setShowComplaintModal(false)}>
+          <div className="modal-content complaint-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>⚠️ Şikayet Et</h2>
+              <button className="modal-close" onClick={() => setShowComplaintModal(false)}>✕</button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="complaint-service-info">
+                <h3>{selectedRequest.title}</h3>
+                <p>{selectedRequest.service_provider?.company_name || selectedRequest.service_provider?.name}</p>
+              </div>
+
+              <div className="complaint-reason">
+                <label>Şikayet Sebebi *</label>
+                <select
+                  value={complaintReason}
+                  onChange={(e) => setComplaintReason(e.target.value)}
+                  required
+                >
+                  <option value="">Seçiniz</option>
+                  <option value="poor_service">Kötü Hizmet Kalitesi</option>
+                  <option value="late_arrival">Geç Geldi</option>
+                  <option value="no_show">Gelmedi</option>
+                  <option value="unprofessional">Profesyonel Olmayan Davranış</option>
+                  <option value="overpricing">Fahiş Fiyat</option>
+                  <option value="incomplete_work">Eksik İş</option>
+                  <option value="damage">Hasar Verdi</option>
+                  <option value="other">Diğer</option>
+                </select>
+              </div>
+
+              <div className="complaint-description">
+                <label>Şikayet Detayı *</label>
+                <textarea
+                  value={complaintDescription}
+                  onChange={(e) => setComplaintDescription(e.target.value)}
+                  placeholder="Şikayetinizi detaylı olarak açıklayın..."
+                  rows={5}
+                  required
+                />
+              </div>
+
+              <div className="complaint-warning">
+                <span className="warning-icon">ℹ️</span>
+                <p>Şikayetiniz incelenecek ve gerekli işlemler yapılacaktır.</p>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button 
+                className="btn-secondary"
+                onClick={() => {
+                  setShowComplaintModal(false);
+                  setComplaintReason('');
+                  setComplaintDescription('');
+                }}
+                disabled={submitting}
+              >
+                İptal
+              </button>
+              <button 
+                className="btn-danger"
+                onClick={handleSubmitComplaint}
+                disabled={submitting || !complaintReason || !complaintDescription.trim()}
+              >
+                {submitting ? '⏳ Gönderiliyor...' : '⚠️ Şikayeti Gönder'}
               </button>
             </div>
           </div>

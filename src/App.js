@@ -12,6 +12,7 @@ import Register from './components/Register';
 import CustomerHomepage from './components/CustomerHomepage';
 import CustomerDashboard from './components/CustomerDashboard';
 import ServiceDashboard from './components/ServiceDashboard';
+import ServiceDetail from './main/ServiceDetail';
 
 function useHash() {
   const [hash, setHash] = useState(window.location.hash || '#/');
@@ -80,6 +81,9 @@ function App() {
   }
   if (hash.startsWith('#/customer-dashboard')) {
     return <CustomerDashboard />;
+  }
+  if (hash.startsWith('#/service/')) {
+    return <ServiceDetail />;
   }
   if (hash.startsWith('#/app')) {
     return <MainApp />;

@@ -439,15 +439,15 @@
 
 .service-stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
   margin-bottom: 32px;
 }
 
 .service-stat-card {
   background: white;
-  border-radius: 16px;
-  padding: 24px;
+  border-radius: 12px;
+  padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   display: flex;
   align-items: center;
@@ -464,13 +464,13 @@
 .service-stat-card.modern {
   flex-direction: column;
   align-items: flex-start;
-  gap: 12px;
+  gap: 10px;
 }
 
 .service-stat-icon-wrapper {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -506,7 +506,7 @@
 }
 
 .service-stat-icon {
-  font-size: 28px;
+  font-size: 24px;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
@@ -516,7 +516,7 @@
 }
 
 .service-stat-number {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 700;
   color: #1e293b;
   margin-bottom: 4px;
@@ -524,10 +524,10 @@
 }
 
 .service-stat-label {
-  font-size: 14px;
+  font-size: 13px;
   color: #64748b;
   font-weight: 500;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .service-stat-trend {
@@ -1129,6 +1129,12 @@
 }
 
 /* Responsive */
+@media (max-width: 1400px) {
+  .service-stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 @media (max-width: 1024px) {
   .service-stats-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -1169,7 +1175,7 @@
   }
   
   .service-stats-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
   }
   
   .service-request-actions {
@@ -1990,4 +1996,716 @@ textarea:focus-visible {
   color: #dc2626 !important;
   font-weight: 600 !important;
   font-size: 14px !important;
+}
+
+/* Reviews Section */
+.service-reviews.modern {
+  animation: fadeIn 0.4s ease;
+}
+
+.service-reviews-list {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.reviews-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 28px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.reviews-list-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.average-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 8px 16px;
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
+}
+
+.avg-rating-number {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.avg-rating-stars {
+  font-size: 20px;
+}
+
+.service-review-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 24px 28px;
+  border-bottom: 2px solid #f0f2ff;
+  transition: all 0.3s ease;
+}
+
+.service-review-row:last-child {
+  border-bottom: none;
+}
+
+.service-review-row:hover {
+  background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+}
+
+.review-row-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 200px;
+  flex-shrink: 0;
+}
+
+.review-row-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.review-row-right {
+  display: flex;
+  align-items: center;
+  min-width: 150px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.review-customer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.review-customer-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 18px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.review-customer-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.review-customer-avatar span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.review-customer-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.review-customer-name {
+  font-weight: 600;
+  color: #2d3748;
+  font-size: 16px;
+}
+
+.review-customer-phone {
+  font-size: 14px;
+  color: #4a5568;
+  font-weight: 500;
+}
+
+.review-date {
+  font-size: 13px;
+  color: #718096;
+}
+
+.review-rating-stars {
+  display: flex;
+  gap: 4px;
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+
+.review-rating-stars .star {
+  transition: transform 0.2s ease;
+}
+
+.review-rating-stars .star.filled {
+  animation: starPop 0.3s ease;
+}
+
+@keyframes starPop {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+}
+
+.review-title {
+  color: #2d3748;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.review-comment {
+  color: #4a5568;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+  border-radius: 8px;
+  border-left: 3px solid #667eea;
+}
+
+.review-location {
+  font-size: 13px;
+  color: #718096;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+/* Complaints Section */
+.service-complaints.modern {
+  animation: fadeIn 0.4s ease;
+}
+
+.service-complaints-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+  gap: 24px;
+}
+
+.service-complaint-card.modern {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  border: 1px solid rgba(250, 112, 154, 0.2);
+  border-left: 4px solid #fa709a;
+}
+
+.service-complaint-card.modern:hover {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+.complaint-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #fff5f5;
+}
+
+.complaint-customer-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.complaint-customer-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 18px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.complaint-customer-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.complaint-customer-avatar span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.complaint-customer-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.complaint-customer-name {
+  font-weight: 600;
+  color: #2d3748;
+  font-size: 16px;
+}
+
+.complaint-date {
+  font-size: 13px;
+  color: #718096;
+}
+
+.complaint-badge {
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  color: white;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.complaint-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.complaint-title {
+  color: #2d3748;
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.complaint-reason-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 14px;
+  color: #4a5568;
+}
+
+.complaint-reason-tag {
+  background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%);
+  color: #c53030;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.complaint-description {
+  color: #4a5568;
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0;
+  padding: 12px;
+  background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%);
+  border-radius: 8px;
+  border-left: 3px solid #fa709a;
+}
+
+.complaint-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.complaint-meta-item {
+  font-size: 14px;
+  color: #718096;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.complaint-card-footer {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 2px solid #fff5f5;
+}
+
+.complaint-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  background: linear-gradient(135deg, #ebf8ff 0%, #e6fffa 100%);
+  border-radius: 8px;
+  font-size: 13px;
+  color: #2c5282;
+  line-height: 1.5;
+}
+
+.complaint-warning .warning-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .service-complaints-grid {
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  }
+  
+  .service-review-row {
+    flex-wrap: wrap;
+  }
+  
+  .review-row-right {
+    width: 100%;
+    justify-content: flex-start;
+    margin-top: 8px;
+  }
+}
+
+@media (max-width: 768px) {
+  .service-complaints-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .service-complaint-card.modern {
+    padding: 20px;
+  }
+
+  .complaint-card-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  
+  .reviews-list-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  
+  .service-review-row {
+    flex-direction: column;
+    gap: 12px;
+    padding: 20px;
+  }
+  
+  .review-row-left {
+    width: 100%;
+  }
+  
+  .review-row-center {
+    width: 100%;
+  }
+  
+  .review-row-right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .service-complaint-card.modern {
+    padding: 16px;
+  }
+
+  .complaint-customer-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+
+  .complaint-title {
+    font-size: 16px;
+  }
+  
+  .reviews-list-header {
+    padding: 20px;
+  }
+  
+  .reviews-list-header h3 {
+    font-size: 18px;
+  }
+  
+  .service-review-row {
+    padding: 16px;
+  }
+  
+  .review-customer-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+  
+  .review-rating-stars {
+    font-size: 16px;
+  }
+}
+
+/* Complaints List View (Similar to Reviews) */
+.service-complaints-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.complaints-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px;
+  background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%);
+  border-radius: 12px;
+  border-left: 4px solid #fa709a;
+}
+
+.complaints-list-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+.complaints-warning-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.complaints-warning-badge .warning-icon {
+  font-size: 18px;
+}
+
+.service-complaint-row {
+  display: flex;
+  gap: 24px;
+  padding: 24px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  border-left: 4px solid #fa709a;
+}
+
+.service-complaint-row:hover {
+  box-shadow: 0 4px 16px rgba(250, 112, 154, 0.15);
+  transform: translateY(-2px);
+}
+
+.complaint-row-left {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  min-width: 250px;
+}
+
+.complaint-customer-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 20px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.complaint-customer-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.complaint-customer-avatar span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.complaint-customer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.complaint-customer-name {
+  font-weight: 600;
+  color: #2d3748;
+  font-size: 16px;
+}
+
+.complaint-customer-phone {
+  font-size: 14px;
+  color: #4a5568;
+  font-weight: 500;
+}
+
+.complaint-date {
+  font-size: 13px;
+  color: #718096;
+}
+
+.complaint-row-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.complaint-warning-badge-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.complaint-warning-badge-inline .warning-icon {
+  font-size: 18px;
+}
+
+.complaint-warning-badge-inline .complaint-reason-tag {
+  background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%);
+  color: #c53030;
+  padding: 6px 14px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.complaint-row-center .complaint-title {
+  color: #2d3748;
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.complaint-row-center .complaint-description {
+  color: #4a5568;
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0;
+  padding: 12px;
+  background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%);
+  border-radius: 8px;
+  border-left: 3px solid #fa709a;
+}
+
+.complaint-row-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  min-width: 150px;
+}
+
+.complaint-location {
+  font-size: 14px;
+  color: #718096;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Responsive Design for Complaints List */
+@media (max-width: 1200px) {
+  .service-complaint-row {
+    flex-wrap: wrap;
+  }
+
+  .complaint-row-right {
+    width: 100%;
+    justify-content: flex-start;
+    margin-top: 8px;
+  }
+}
+
+@media (max-width: 768px) {
+  .complaints-list-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .service-complaint-row {
+    flex-direction: column;
+    gap: 12px;
+    padding: 20px;
+  }
+
+  .complaint-row-left {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .complaint-row-center {
+    width: 100%;
+  }
+
+  .complaint-row-right {
+    width: 100%;
+    justify-content: flex-start;
+    min-width: unset;
+  }
+}
+
+@media (max-width: 480px) {
+  .complaints-list-header {
+    padding: 20px;
+  }
+
+  .complaints-list-header h3 {
+    font-size: 18px;
+  }
+
+  .service-complaint-row {
+    padding: 16px;
+  }
+
+  .complaint-customer-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+
+  .complaint-row-center .complaint-title {
+    font-size: 16px;
+  }
 }

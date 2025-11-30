@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import ReactDOM from 'react-dom';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -127,13 +128,55 @@ export default function RealMap({ userLocation, centerLocation, services, focuse
   const scrollPositionRef = useRef(0);
   const [selectedService, setSelectedService] = useState(null);
   const [showServiceModal, setShowServiceModal] = useState(false);
+  const [showReviewsModal, setShowReviewsModal] = useState(false);
+  const [serviceReviews, setServiceReviews] = useState([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
   const [mapReady, setMapReady] = useState(true); // Start ready
   const [mapError, setMapError] = useState(null);
   const [mapInstance, setMapInstance] = useState(null);
 
+  // Modal animasyon ve scrollbar için style ekleme
+  useEffect(() => {
+    if (!document.getElementById('realmap-modal-styles')) {
+      const style = document.createElement('style');
+      style.id = 'realmap-modal-styles';
+      style.textContent = `
+        @keyframes modalFadeIn {
+          from {
+            opacity: 0;
+            transform: scale(0.95) translateY(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+        }
+        
+        .realmap-modal-content::-webkit-scrollbar {
+          width: 8px;
+        }
+        
+        .realmap-modal-content::-webkit-scrollbar-track {
+          background: #f1f1f1;
+          border-radius: 10px;
+        }
+        
+        .realmap-modal-content::-webkit-scrollbar-thumb {
+          background: #888;
+          border-radius: 10px;
+        }
+        
+        .realmap-modal-content::-webkit-scrollbar-thumb:hover {
+          background: #555;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
+
   // Modal açıkken body scroll'unu engelle ve scroll pozisyonunu koru
   useEffect(() => {
-    if (showServiceModal) {
+    if (showServiceModal || showReviewsModal) {
       scrollPositionRef.current = window.scrollY;
       document.body.style.top = `-${scrollPositionRef.current}px`;
       document.body.classList.add('modal-open');
@@ -147,7 +190,7 @@ export default function RealMap({ userLocation, centerLocation, services, focuse
       document.body.classList.remove('modal-open');
       document.body.style.top = '';
     };
-  }, [showServiceModal]);
+  }, [showServiceModal, showReviewsModal]);
   // Zoom tracking for dynamic loading
   
   // Default center (Istanbul)
@@ -164,6 +207,31 @@ export default function RealMap({ userLocation, centerLocation, services, focuse
   useEffect(() => {
     console.log('🗺️ RealMap services updated:', safeServices.length, 'services');
   }, [safeServices.length]);
+
+  // Değerlendirmeleri yükle
+  const loadServiceReviews = async (serviceId) => {
+    setLoadingReviews(true);
+    try {
+      const response = await fetch(`http://localhost:8000/api/services/${serviceId}`);
+      const data = await response.json();
+      
+      if (data.success && data.data.reviews) {
+        setServiceReviews(data.data.reviews);
+      }
+    } catch (error) {
+      console.error('Error loading reviews:', error);
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
+
+  // Değerlendirmeler modalını aç
+  const handleShowReviews = () => {
+    if (selectedService && selectedService.id) {
+      loadServiceReviews(selectedService.id);
+      setShowReviewsModal(true);
+    }
+  };
 
   // Update map center when centerLocation changes
   useEffect(() => {
@@ -502,30 +570,42 @@ export default function RealMap({ userLocation, centerLocation, services, focuse
       </MapContainer>
       
       {/* Service Detail Modal */}
-      {showServiceModal && selectedService && (
+      {showServiceModal && selectedService && ReactDOM.createPortal(
         <div style={{
           position: 'fixed',
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(4px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 10000,
-          padding: '20px'
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '16px',
-            maxWidth: '600px',
-            width: '100%',
-            maxHeight: '90vh',
-            overflow: 'auto',
-            position: 'relative',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
-          }}>
+          zIndex: 99999,
+          padding: '20px',
+          overflowY: 'auto'
+        }}
+        onClick={() => setShowServiceModal(false)}
+        >
+          <div 
+            className="realmap-modal-content"
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '20px',
+              maxWidth: '650px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              position: 'relative',
+              boxShadow: '0 25px 80px rgba(0, 0, 0, 0.5)',
+              margin: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              animation: 'modalFadeIn 0.2s ease-out'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Modal Header */}
             <div style={{
               padding: '24px',
@@ -587,18 +667,31 @@ export default function RealMap({ userLocation, centerLocation, services, focuse
             </div>
             
             {/* Modal Content */}
-            <div style={{ padding: '24px' }}>
+            <div style={{ padding: '24px', flex: 1, overflowY: 'auto' }}>
               {/* Rating and Reviews Section */}
               <div style={{ marginBottom: '24px' }}>
                 <h3 style={{ margin: '0 0 12px', fontSize: '18px', color: '#333' }}>
                   📊 Değerlendirme
                 </h3>
-                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
+                <div 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    marginBottom: '12px',
+                    cursor: (selectedService.reviews || selectedService.total_reviews) > 0 ? 'pointer' : 'default'
+                  }}
+                  onClick={() => {
+                    if ((selectedService.reviews || selectedService.total_reviews) > 0) {
+                      handleShowReviews();
+                    }
+                  }}
+                >
                   {(() => {
                     const numericRating = typeof selectedService.rating === 'number' ? selectedService.rating : 
                                          typeof selectedService.rating === 'string' ? parseFloat(selectedService.rating) : 4.0;
                     const safeRating = isNaN(numericRating) ? 4.0 : numericRating;
                     const ratingColor = safeRating >= 4.5 ? '#4caf50' : safeRating >= 4.0 ? '#ff9800' : '#f44336';
+                    const hasReviews = (selectedService.reviews || selectedService.total_reviews) > 0;
                     
                     return (
                       <>
@@ -609,11 +702,20 @@ export default function RealMap({ userLocation, centerLocation, services, focuse
                           borderRadius: '20px',
                           fontSize: '18px',
                           fontWeight: 'bold',
-                          marginRight: '12px'
-                        }}>
+                          marginRight: '12px',
+                          transition: 'transform 0.2s',
+                          transform: hasReviews ? 'scale(1)' : 'none'
+                        }}
+                        onMouseEnter={(e) => hasReviews && (e.currentTarget.style.transform = 'scale(1.05)')}
+                        onMouseLeave={(e) => hasReviews && (e.currentTarget.style.transform = 'scale(1)')}
+                        >
                           ⭐ {safeRating.toFixed(1)}
                         </div>
-                        <span style={{ fontSize: '16px', color: '#666' }}>
+                        <span style={{ 
+                          fontSize: '16px', 
+                          color: hasReviews ? '#3b82f6' : '#666',
+                          textDecoration: hasReviews ? 'underline' : 'none'
+                        }}>
                           ({selectedService.reviews || selectedService.total_reviews || 0} değerlendirme)
                         </span>
                       </>
@@ -686,45 +788,6 @@ export default function RealMap({ userLocation, centerLocation, services, focuse
                 </div>
               )}
               
-              {/* Mock Reviews Section */}
-              <div style={{ marginBottom: '24px' }}>
-                <h3 style={{ margin: '0 0 16px', fontSize: '18px', color: '#333' }}>
-                  💬 Son Yorumlar
-                </h3>
-                {/* Mock reviews */}
-                {[
-                  { name: 'Ahmet K.', rating: 5, comment: 'Çok memnun kaldım, hızlı ve kaliteli hizmet.', date: '2 gün önce' },
-                  { name: 'Fatma S.', rating: 4, comment: 'İyi çalışıyor, tavsiye ederim.', date: '1 hafta önce' },
-                  { name: 'Mehmet Y.', rating: 5, comment: 'Profesyonel yaklaşım, teşekkürler.', date: '2 hafta önce' }
-                ].map((review, index) => (
-                  <div key={index} style={{
-                    background: '#f8f9fa',
-                    padding: '16px',
-                    borderRadius: '12px',
-                    marginBottom: '12px'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <div style={{ fontWeight: 'bold', color: '#333' }}>{review.name}</div>
-                      <div style={{ fontSize: '12px', color: '#999' }}>{review.date}</div>
-                    </div>
-                    <div style={{ display: 'flex', marginBottom: '8px' }}>
-                      {[1, 2, 3, 4, 5].map(star => (
-                        <span key={star} style={{ 
-                          fontSize: '16px', 
-                          color: star <= review.rating ? '#ffc107' : '#e0e0e0',
-                          marginRight: '2px'
-                        }}>
-                          ⭐
-                        </span>
-                      ))}
-                    </div>
-                    <p style={{ margin: 0, color: '#666', fontSize: '14px' }}>
-                      {review.comment}
-                    </p>
-                  </div>
-                ))}
-              </div>
-              
               {/* Action Buttons */}
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button
@@ -771,7 +834,217 @@ export default function RealMap({ userLocation, centerLocation, services, focuse
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Reviews Modal */}
+      {showReviewsModal && ReactDOM.createPortal(
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100000,
+          padding: '20px',
+          overflowY: 'auto'
+        }}
+        onClick={() => setShowReviewsModal(false)}
+        >
+          <div 
+            className="realmap-modal-content"
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '20px',
+              maxWidth: '700px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              position: 'relative',
+              boxShadow: '0 25px 80px rgba(0, 0, 0, 0.5)',
+              margin: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              animation: 'modalFadeIn 0.2s ease-out'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{
+              padding: '24px',
+              borderBottom: '1px solid #eee',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '24px', color: '#333' }}>
+                  ⭐ Müşteri Değerlendirmeleri
+                </h2>
+                <p style={{ margin: '4px 0 0', color: '#666', fontSize: '14px' }}>
+                  {selectedService?.company_name || selectedService?.name}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowReviewsModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: '#999',
+                  padding: '4px'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Content */}
+            <div style={{ padding: '24px', flex: 1, overflowY: 'auto' }}>
+              {loadingReviews ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+                  <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
+                  <p>Değerlendirmeler yükleniyor...</p>
+                </div>
+              ) : serviceReviews.length > 0 ? (
+                <div>
+                  {serviceReviews.map((review, index) => (
+                    <div key={index} style={{
+                      background: '#f8f9fa',
+                      padding: '20px',
+                      borderRadius: '12px',
+                      marginBottom: '16px',
+                      border: '1px solid #e9ecef'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          {(() => {
+                            const profileImage = review.customer?.profile_image;
+                            const hasImage = profileImage && profileImage.trim() !== '';
+                            const imageSrc = hasImage 
+                              ? (profileImage.startsWith('http') || profileImage.startsWith('data:')
+                                  ? profileImage 
+                                  : `http://localhost:8000/storage/${profileImage}`)
+                              : null;
+
+                            return (
+                              <div style={{
+                                width: '40px',
+                                height: '40px',
+                                borderRadius: '50%',
+                                background: hasImage ? '#f0f0f0' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'white',
+                                fontWeight: 'bold',
+                                fontSize: '18px',
+                                overflow: 'hidden',
+                                border: '2px solid #fff',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                                position: 'relative'
+                              }}>
+                                {hasImage ? (
+                                  <img 
+                                    src={imageSrc}
+                                    alt={review.customer?.name || 'User'}
+                                    style={{
+                                      width: '100%',
+                                      height: '100%',
+                                      objectFit: 'cover'
+                                    }}
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                      e.target.parentElement.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                                      e.target.parentElement.innerHTML = review.customer?.name?.charAt(0) || '?';
+                                    }}
+                                  />
+                                ) : (
+                                  review.customer?.name?.charAt(0) || '?'
+                                )}
+                              </div>
+                            );
+                          })()}
+                          <div>
+                            <div style={{ fontWeight: 'bold', color: '#333' }}>
+                              {review.customer?.name || 'Müşteri'}
+                            </div>
+                            <div style={{ fontSize: '12px', color: '#999' }}>
+                              {review.rated_at ? new Date(review.rated_at).toLocaleDateString('tr-TR') : ''}
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ display: 'flex', gap: '2px' }}>
+                            {[1, 2, 3, 4, 5].map(star => {
+                              const rating = Number(review.rating) || 0;
+                              const isFilled = star <= rating;
+                              return (
+                                <span key={star} style={{ 
+                                  fontSize: '20px', 
+                                  color: isFilled ? '#ffc107' : '#e0e0e0',
+                                  textShadow: isFilled ? '0 1px 2px rgba(0,0,0,0.2)' : 'none'
+                                }}>
+                                  {isFilled ? '⭐' : '☆'}
+                                </span>
+                              );
+                            })}
+                          </div>
+                          <span style={{ 
+                            fontSize: '14px', 
+                            fontWeight: 'bold', 
+                            color: '#666',
+                            background: '#f0f0f0',
+                            padding: '2px 8px',
+                            borderRadius: '12px'
+                          }}>
+                            {Number(review.rating) || 0}/5
+                          </span>
+                        </div>
+                      </div>
+                      {review.title && (
+                        <div style={{ fontWeight: '600', color: '#333', marginBottom: '8px' }}>
+                          {review.title}
+                        </div>
+                      )}
+                      {review.comment && (
+                        <p style={{ margin: 0, color: '#666', fontSize: '14px', lineHeight: '1.6' }}>
+                          {review.comment}
+                        </p>
+                      )}
+                      {review.service_type && (
+                        <div style={{ 
+                          marginTop: '12px', 
+                          fontSize: '12px', 
+                          color: '#999',
+                          padding: '4px 8px',
+                          background: '#e9ecef',
+                          borderRadius: '6px',
+                          display: 'inline-block'
+                        }}>
+                          {review.service_type}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+                  <div style={{ fontSize: '48px', marginBottom: '16px' }}>📝</div>
+                  <p>Henüz değerlendirme yapılmamış.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

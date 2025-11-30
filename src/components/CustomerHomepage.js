@@ -394,7 +394,11 @@ export default function CustomerHomepage() {
   };
 
   const handleServiceDetails = async (service) => {
-    // Fetch service details with reviews
+    // Önce modal'ı hemen aç (temel bilgilerle)
+    setSelectedService(service);
+    setShowServiceModal(true);
+    
+    // Sonra detayları yükle
     try {
       const response = await fetch(`http://localhost:8000/api/services/${service.id}`);
       const data = await response.json();
@@ -420,14 +424,12 @@ export default function CustomerHomepage() {
         serviceWithDetails.average_rating = data.data.average_rating;
         serviceWithDetails.total_reviews = data.data.total_reviews;
         
+        // Modal zaten açık, sadece içeriği güncelle
         setSelectedService(serviceWithDetails);
-        setShowServiceModal(true);
       }
     } catch (error) {
       console.error('Error fetching service details:', error);
-      // Fallback to basic modal
-      setSelectedService(service);
-      setShowServiceModal(true);
+      // Modal zaten temel bilgilerle açık, hata durumunda olduğu gibi kalır
     }
   };
 
@@ -775,8 +777,16 @@ export default function CustomerHomepage() {
                   <div className="customer-service-details">
                     <div className="service-detail-item">
                       <span className="detail-icon">⭐</span>
-                      <span className="detail-text">{service.rating || '5.0'}</span>
-                      <span className="detail-subtext">({service.reviews || 0} değerlendirme)</span>
+                      {service.reviews > 0 ? (
+                        <>
+                          <span className="detail-text">{service.rating}</span>
+                          <span className="detail-subtext">({service.reviews} değerlendirme)</span>
+                        </>
+                      ) : (
+                        <span className="detail-text" style={{ fontSize: '13px', color: '#94a3b8' }}>
+                          Henüz değerlendirilmedi
+                        </span>
+                      )}
                     </div>
                     <div className="service-detail-item">
                       <span className="detail-icon">📍</span>
@@ -930,23 +940,31 @@ export default function CustomerHomepage() {
               <div className="service-modal-section">
                 <h5>⭐ Değerlendirme</h5>
                 <div className="service-modal-rating">
-                  <span className="rating-stars">
-                    {'⭐'.repeat(Math.floor(selectedService.rating || 5))}
-                  </span>
-                  <span className="rating-text">
-                    {selectedService.rating || '5.0'}/5 
-                    {selectedService.reviews && selectedService.reviews.length > 0 ? (
-                      <span 
-                        className="reviews-link"
-                        onClick={() => setShowReviewsModal(true)}
-                        style={{ cursor: 'pointer', color: '#3b82f6', textDecoration: 'underline', marginLeft: '4px' }}
-                      >
-                        ({selectedService.total_reviews || selectedService.reviews.length} değerlendirme)
+                  {selectedService.reviews === undefined ? (
+                    <span style={{ color: '#94a3b8', fontSize: '14px' }}>
+                      Yükleniyor...
+                    </span>
+                  ) : selectedService.reviews && selectedService.reviews.length > 0 ? (
+                    <>
+                      <span className="rating-stars">
+                        {'⭐'.repeat(Math.floor(selectedService.rating || 0))}
                       </span>
-                    ) : (
-                      <span> (0 değerlendirme)</span>
-                    )}
-                  </span>
+                      <span className="rating-text">
+                        {selectedService.rating}/5 
+                        <span 
+                          className="reviews-link"
+                          onClick={() => setShowReviewsModal(true)}
+                          style={{ cursor: 'pointer', color: '#3b82f6', textDecoration: 'underline', marginLeft: '4px' }}
+                        >
+                          ({selectedService.total_reviews || selectedService.reviews.length} değerlendirme)
+                        </span>
+                      </span>
+                    </>
+                  ) : (
+                    <span style={{ color: '#94a3b8', fontSize: '14px' }}>
+                      Henüz değerlendirilmedi
+                    </span>
+                  )}
                 </div>
               </div>
 

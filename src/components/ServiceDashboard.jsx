@@ -42,6 +42,8 @@ function useServiceAuth() {
 
 export default function ServiceDashboard() {
   const auth = useServiceAuth();
+  const scrollPositionRef = React.useRef(0);
+  const wasModalOpenRef = React.useRef(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
@@ -148,6 +150,32 @@ export default function ServiceDashboard() {
       console.error('Mark as read error:', err);
     }
   };
+
+  // Modal açıkken body scroll'unu engelle ve scroll pozisyonunu koru
+  useEffect(() => {
+    const isAnyModalOpen = showDeleteModal || showRejectModal;
+    
+    if (isAnyModalOpen && !wasModalOpenRef.current) {
+      // İlk modal açılıyor - scroll pozisyonunu kaydet
+      scrollPositionRef.current = window.scrollY;
+      document.body.style.top = `-${scrollPositionRef.current}px`;
+      document.body.classList.add('modal-open');
+      wasModalOpenRef.current = true;
+    } else if (!isAnyModalOpen && wasModalOpenRef.current) {
+      // Tüm modaller kapandı - scroll pozisyonunu geri yükle
+      document.body.classList.remove('modal-open');
+      document.body.style.top = '';
+      window.scrollTo(0, scrollPositionRef.current);
+      wasModalOpenRef.current = false;
+    }
+    
+    return () => {
+      if (!isAnyModalOpen) {
+        document.body.classList.remove('modal-open');
+        document.body.style.top = '';
+      }
+    };
+  }, [showDeleteModal, showRejectModal]);
 
   // Debug user info on component mount
   useEffect(() => {

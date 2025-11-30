@@ -41,6 +41,8 @@ function useCustomerAuth() {
 
 export default function CustomerDashboard() {
   const auth = useCustomerAuth();
+  const scrollPositionRef = React.useRef(0);
+  const wasModalOpenRef = React.useRef(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(false);
   const [myRequests, setMyRequests] = useState([]);
@@ -281,6 +283,32 @@ export default function CustomerDashboard() {
       alert('Bildirim tercihi güncellenirken hata oluştu.');
     }
   };
+
+  // Modal açıkken body scroll'unu engelle ve scroll pozisyonunu koru
+  useEffect(() => {
+    const isAnyModalOpen = showRatingModal || showComplaintModal || showRequestDetail || showCancelConfirm || showDeleteConfirm;
+    
+    if (isAnyModalOpen && !wasModalOpenRef.current) {
+      // İlk modal açılıyor - scroll pozisyonunu kaydet
+      scrollPositionRef.current = window.scrollY;
+      document.body.style.top = `-${scrollPositionRef.current}px`;
+      document.body.classList.add('modal-open');
+      wasModalOpenRef.current = true;
+    } else if (!isAnyModalOpen && wasModalOpenRef.current) {
+      // Tüm modaller kapandı - scroll pozisyonunu geri yükle
+      document.body.classList.remove('modal-open');
+      document.body.style.top = '';
+      window.scrollTo(0, scrollPositionRef.current);
+      wasModalOpenRef.current = false;
+    }
+    
+    return () => {
+      if (!isAnyModalOpen) {
+        document.body.classList.remove('modal-open');
+        document.body.style.top = '';
+      }
+    };
+  }, [showRatingModal, showComplaintModal, showRequestDetail, showCancelConfirm, showDeleteConfirm]);
 
   useEffect(() => {
     // Backend'den güncel kullanıcı bilgilerini al

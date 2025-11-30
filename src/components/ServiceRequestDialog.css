@@ -13,6 +13,7 @@
   z-index: 9999;
   padding: 20px;
   animation: fadeIn 0.2s ease-out;
+  overflow-y: auto;
 }
 
 @keyframes fadeIn {

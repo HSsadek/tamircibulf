@@ -31,6 +31,8 @@ function useCustomerAuth() {
 
 export default function CustomerHomepage() {
   const auth = useCustomerAuth();
+  const scrollPositionRef = React.useRef(0);
+  const wasModalOpenRef = React.useRef(false);
   const [services, setServices] = useState([]);
   const [filteredServices, setFilteredServices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -94,6 +96,32 @@ export default function CustomerHomepage() {
       fetchServices(1, false);
     }
   }, [userLocation]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Modal açıkken body scroll'unu engelle ve scroll pozisyonunu koru
+  useEffect(() => {
+    const isAnyModalOpen = showServiceModal || showReviewsModal || showRequestDialog;
+    
+    if (isAnyModalOpen && !wasModalOpenRef.current) {
+      // İlk modal açılıyor - scroll pozisyonunu kaydet
+      scrollPositionRef.current = window.scrollY;
+      document.body.style.top = `-${scrollPositionRef.current}px`;
+      document.body.classList.add('modal-open');
+      wasModalOpenRef.current = true;
+    } else if (!isAnyModalOpen && wasModalOpenRef.current) {
+      // Tüm modaller kapandı - scroll pozisyonunu geri yükle
+      document.body.classList.remove('modal-open');
+      document.body.style.top = '';
+      window.scrollTo(0, scrollPositionRef.current);
+      wasModalOpenRef.current = false;
+    }
+    
+    return () => {
+      if (!isAnyModalOpen) {
+        document.body.classList.remove('modal-open');
+        document.body.style.top = '';
+      }
+    };
+  }, [showServiceModal, showReviewsModal, showRequestDialog]);
 
   useEffect(() => {
     // Refetch when any filter changes including zoom
@@ -731,7 +759,7 @@ export default function CustomerHomepage() {
                       {service.logo ? (
                         <LazyImage 
                           src={service.logo} 
-                          alt={service.name} 
+                          alt={service.company_name || service.name} 
                           style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} 
                         />
                       ) : (
@@ -739,7 +767,7 @@ export default function CustomerHomepage() {
                       )}
                     </div>
                     <div className="customer-service-info">
-                      <h4>{service.name}</h4>
+                      <h4>{service.company_name || service.name}</h4>
                       <p className="service-description">{service.description}</p>
                     </div>
                   </div>
@@ -870,7 +898,7 @@ export default function CustomerHomepage() {
                   {selectedService.logo ? (
                     <img 
                       src={selectedService.logo.startsWith('http') ? selectedService.logo : `http://localhost:8000/storage/${selectedService.logo}`}
-                      alt={selectedService.name} 
+                      alt={selectedService.company_name || selectedService.name} 
                       style={{ 
                         width: '100%', 
                         height: '100%', 
@@ -887,7 +915,7 @@ export default function CustomerHomepage() {
                   )}
                 </div>
                 <div className="service-modal-details">
-                  <h4>{selectedService.name}</h4>
+                  <h4>{selectedService.company_name || selectedService.name}</h4>
                   <p className="service-modal-type">{selectedService.service_type_name || selectedService.service_type}</p>
                 </div>
               </div>
@@ -1024,7 +1052,7 @@ export default function CustomerHomepage() {
               <div>
                 <h3>⭐ Müşteri Değerlendirmeleri</h3>
                 <p className="reviews-modal-subtitle">
-                  {selectedService.name} - {selectedService.reviews.length} değerlendirme
+                  {selectedService.company_name || selectedService.name} - {selectedService.reviews.length} değerlendirme
                 </p>
               </div>
               <button className="service-modal-close" onClick={() => setShowReviewsModal(false)}>

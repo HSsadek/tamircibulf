@@ -124,11 +124,30 @@ const createServiceIcon = (serviceType, rating, logo) => {
 
 export default function RealMap({ userLocation, centerLocation, services, focusedServiceId, className = "", height = "400px", onLocationRequest, onLocationSearch, onServiceRequest }) {
   const mapRef = useRef(null);
+  const scrollPositionRef = useRef(0);
   const [selectedService, setSelectedService] = useState(null);
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [mapReady, setMapReady] = useState(true); // Start ready
   const [mapError, setMapError] = useState(null);
   const [mapInstance, setMapInstance] = useState(null);
+
+  // Modal açıkken body scroll'unu engelle ve scroll pozisyonunu koru
+  useEffect(() => {
+    if (showServiceModal) {
+      scrollPositionRef.current = window.scrollY;
+      document.body.style.top = `-${scrollPositionRef.current}px`;
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+      document.body.style.top = '';
+      window.scrollTo(0, scrollPositionRef.current);
+    }
+    
+    return () => {
+      document.body.classList.remove('modal-open');
+      document.body.style.top = '';
+    };
+  }, [showServiceModal]);
   // Zoom tracking for dynamic loading
   
   // Default center (Istanbul)
@@ -351,7 +370,7 @@ export default function RealMap({ userLocation, centerLocation, services, focuse
                       {service.logo ? (
                         <img 
                           src={service.logo} 
-                          alt={service.name} 
+                          alt={service.company_name || service.name} 
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                         />
                       ) : (
@@ -365,7 +384,7 @@ export default function RealMap({ userLocation, centerLocation, services, focuse
                     </div>
                     <div>
                       <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#333' }}>
-                        {service.name || 'Servis Sağlayıcı'}
+                        {service.company_name || service.name || 'Servis Sağlayıcı'}
                       </div>
                       <div style={{ fontSize: '12px', color: '#666' }}>
                         {service.service_type_name || service.service_type || 'Genel Hizmet'}
@@ -531,7 +550,7 @@ export default function RealMap({ userLocation, centerLocation, services, focuse
                   {selectedService.logo ? (
                     <img 
                       src={selectedService.logo} 
-                      alt={selectedService.name} 
+                      alt={selectedService.company_name || selectedService.name} 
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                     />
                   ) : (
@@ -545,7 +564,7 @@ export default function RealMap({ userLocation, centerLocation, services, focuse
                 </div>
                 <div>
                   <h2 style={{ margin: 0, fontSize: '24px', color: '#333' }}>
-                    {selectedService.name || 'Servis Sağlayıcı'}
+                    {selectedService.company_name || selectedService.name || 'Servis Sağlayıcı'}
                   </h2>
                   <p style={{ margin: '4px 0 0', color: '#666', fontSize: '14px' }}>
                     {selectedService.service_type_name || selectedService.service_type || 'Genel Hizmet'}

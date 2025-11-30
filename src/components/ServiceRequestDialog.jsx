@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './ServiceRequestDialog.css';
 
 export default function ServiceRequestDialog({ 
@@ -8,6 +8,7 @@ export default function ServiceRequestDialog({
   userLocation,
   onSuccess 
 }) {
+  const scrollPositionRef = useRef(0);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1); // 1: Form, 2: Success
   const [formData, setFormData] = useState({
@@ -28,7 +29,7 @@ export default function ServiceRequestDialog({
       setFormData(prev => ({
         ...prev,
         service_type: service.service_type || '',
-        title: `${service.name} - Hizmet Talebi`,
+        title: `${service.company_name || service.name} - Hizmet Talebi`,
         city: service.city || '',
         district: service.district || '',
         latitude: userLocation?.lat || '',
@@ -36,6 +37,24 @@ export default function ServiceRequestDialog({
       }));
     }
   }, [isOpen, service, userLocation]);
+
+  // Modal açıkken body scroll'unu engelle ve scroll pozisyonunu koru
+  useEffect(() => {
+    if (isOpen) {
+      scrollPositionRef.current = window.scrollY;
+      document.body.style.top = `-${scrollPositionRef.current}px`;
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+      document.body.style.top = '';
+      window.scrollTo(0, scrollPositionRef.current);
+    }
+    
+    return () => {
+      document.body.classList.remove('modal-open');
+      document.body.style.top = '';
+    };
+  }, [isOpen]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -163,7 +182,7 @@ export default function ServiceRequestDialog({
                 {service && (
                   <div className="service-info-badge">
                     <span className="service-icon">{service.image}</span>
-                    <span className="service-name">{service.name}</span>
+                    <span className="service-name">{service.company_name || service.name}</span>
                   </div>
                 )}
               </div>
@@ -321,7 +340,7 @@ export default function ServiceRequestDialog({
                     <span className="info-icon">🔧</span>
                     <div>
                       <strong>Servis:</strong>
-                      <p>{service.name}</p>
+                      <p>{service.company_name || service.name}</p>
                     </div>
                   </div>
                 )}

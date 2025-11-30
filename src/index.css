@@ -21,3 +21,12 @@ input, textarea, select {
 input::placeholder, textarea::placeholder {
   color: #999 !important;
 }
+
+/* Modal açıkken body scroll'unu engelle ve pozisyonu koru */
+body.modal-open {
+  position: fixed !important;
+  overflow: hidden !important;
+  width: 100%;
+  left: 0;
+  right: 0;
+}

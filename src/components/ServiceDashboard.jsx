@@ -106,8 +106,14 @@ export default function ServiceDashboard() {
   ];
 
   const cities = [
-    'İstanbul', 'Ankara', 'İzmir', 'Bursa', 'Antalya', 
-    'Adana', 'Konya', 'Gaziantep', 'Kayseri', 'Eskişehir'
+    'Adana', 'Adıyaman', 'Afyonkarahisar', 'Ağrı', 'Aksaray', 'Amasya', 'Ankara', 'Antalya', 'Ardahan', 'Artvin',
+    'Aydın', 'Balıkesir', 'Bartın', 'Batman', 'Bayburt', 'Bilecik', 'Bingöl', 'Bitlis', 'Bolu', 'Burdur',
+    'Bursa', 'Çanakkale', 'Çankırı', 'Çorum', 'Denizli', 'Diyarbakır', 'Düzce', 'Edirne', 'Elazığ', 'Erzincan',
+    'Erzurum', 'Eskişehir', 'Gaziantep', 'Giresun', 'Gümüşhane', 'Hakkari', 'Hatay', 'Iğdır', 'Isparta', 'İstanbul',
+    'İzmir', 'Kahramanmaraş', 'Karabük', 'Karaman', 'Kars', 'Kastamonu', 'Kayseri', 'Kilis', 'Kırıkkale', 'Kırklareli',
+    'Kırşehir', 'Kocaeli', 'Konya', 'Kütahya', 'Malatya', 'Manisa', 'Mardin', 'Mersin', 'Muğla', 'Muş',
+    'Nevşehir', 'Niğde', 'Ordu', 'Osmaniye', 'Rize', 'Sakarya', 'Samsun', 'Şanlıurfa', 'Siirt', 'Sinop',
+    'Sivas', 'Şırnak', 'Tekirdağ', 'Tokat', 'Trabzon', 'Tunceli', 'Uşak', 'Van', 'Yalova', 'Yozgat', 'Zonguldak'
   ];
 
   // Fetch notifications
@@ -526,12 +532,61 @@ export default function ServiceDashboard() {
     }
   };
 
+  // Geocoding function to get coordinates from address
+  const geocodeAddress = async (address, city, district) => {
+    if (!address || !city) return;
+    
+    try {
+      const fullAddress = `${address}, ${district ? district + ', ' : ''}${city}, Türkiye`;
+      const encodedAddress = encodeURIComponent(fullAddress);
+      
+      // Using Nominatim (OpenStreetMap) - free geocoding service
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1`,
+        {
+          headers: {
+            'User-Agent': 'TamirciBul/1.0'
+          }
+        }
+      );
+      
+      const data = await response.json();
+      
+      if (data && data.length > 0) {
+        const { lat, lon } = data[0];
+        setProfile(prev => ({
+          ...prev,
+          latitude: parseFloat(lat).toFixed(6),
+          longitude: parseFloat(lon).toFixed(6)
+        }));
+        console.log('✅ Koordinatlar güncellendi:', { lat, lon });
+      }
+    } catch (error) {
+      console.error('Geocoding hatası:', error);
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setProfile(prev => ({
       ...prev,
       [name]: value
     }));
+    
+    // If address, city, or district changes, update coordinates
+    if (name === 'address' || name === 'city' || name === 'district') {
+      const updatedProfile = { ...profile, [name]: value };
+      
+      // Debounce geocoding to avoid too many requests
+      if (window.geocodeTimeout) clearTimeout(window.geocodeTimeout);
+      window.geocodeTimeout = setTimeout(() => {
+        geocodeAddress(
+          updatedProfile.address,
+          updatedProfile.city,
+          updatedProfile.district
+        );
+      }, 1000); // Wait 1 second after user stops typing
+    }
   };
 
   const handleLogoChange = async (e) => {
@@ -1521,29 +1576,29 @@ export default function ServiceDashboard() {
                               <div className="form-group">
                                 <label>Enlem (Latitude)</label>
                                 <input
-                                  type="number"
-                                  step="0.000001"
+                                  type="text"
                                   name="latitude"
                                   value={profile.latitude || ''}
-                                  onChange={handleInputChange}
-                                  placeholder="41.0082"
+                                  readOnly
+                                  placeholder="Otomatik hesaplanacak"
+                                  style={{ backgroundColor: '#f5f5f5', cursor: 'not-allowed' }}
                                 />
                               </div>
 
                               <div className="form-group">
                                 <label>Boylam (Longitude)</label>
                                 <input
-                                  type="number"
-                                  step="0.000001"
+                                  type="text"
                                   name="longitude"
                                   value={profile.longitude || ''}
-                                  onChange={handleInputChange}
-                                  placeholder="28.9784"
+                                  readOnly
+                                  placeholder="Otomatik hesaplanacak"
+                                  style={{ backgroundColor: '#f5f5f5', cursor: 'not-allowed' }}
                                 />
                               </div>
                             </div>
                             <p className="hint">
-                              💡 Konum bilgilerini haritadan otomatik almak için Google Maps'ten koordinatlarınızı kopyalayabilirsiniz
+                              💡 Konum bilgileri adres, şehir ve ilçe bilgilerinizden otomatik olarak hesaplanır
                             </p>
                           </div>
 

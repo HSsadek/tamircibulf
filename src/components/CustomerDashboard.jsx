@@ -1072,7 +1072,7 @@ export default function CustomerDashboard() {
                     
                     <div className="request-card-body">
                       <h3>{request.title}</h3>
-                      <p className="request-description">{request.description}</p>
+                      <p className="request-description">{request.description?.substring(0, 100)}{request.description?.length > 100 ? '...' : ''}</p>
                       
                       {/* Rejection Reason */}
                       {request.status === 'rejected' && request.cancellation_reason && (
@@ -1085,7 +1085,36 @@ export default function CustomerDashboard() {
                         </div>
                       )}
                       
+                      {/* Cancellation Reason */}
+                      {request.status === 'cancelled' && request.cancellation_reason && (
+                        <div className="rejection-reason-box">
+                          <div className="rejection-reason-header">
+                            <span className="rejection-icon">❌</span>
+                            <strong>İptal Sebebi:</strong>
+                          </div>
+                          <p className="rejection-reason-text">{request.cancellation_reason}</p>
+                        </div>
+                      )}
+                      
                       <div className="request-meta">
+                        <div className="meta-item">
+                          <span className="meta-icon">
+                            {request.service_type === 'plumbing' ? '🚰' :
+                             request.service_type === 'electrical' ? '⚡' :
+                             request.service_type === 'cleaning' ? '🧹' :
+                             request.service_type === 'appliance' ? '🔌' :
+                             request.service_type === 'computer' ? '💻' :
+                             request.service_type === 'phone' ? '📱' : '🛠️'}
+                          </span>
+                          <span>
+                            {request.service_type === 'plumbing' ? 'Tesisatçı' :
+                             request.service_type === 'electrical' ? 'Elektrikçi' :
+                             request.service_type === 'cleaning' ? 'Temizlik' :
+                             request.service_type === 'appliance' ? 'Beyaz Eşya' :
+                             request.service_type === 'computer' ? 'Bilgisayar' :
+                             request.service_type === 'phone' ? 'Telefon' : 'Diğer'}
+                          </span>
+                        </div>
                         <div className="meta-item">
                           <span className="meta-icon">📍</span>
                           <span>{request.district}, {request.city}</span>
@@ -1094,12 +1123,30 @@ export default function CustomerDashboard() {
                           <span className="meta-icon">📅</span>
                           <span>{new Date(request.created_at).toLocaleDateString('tr-TR')}</span>
                         </div>
+                        {request.preferred_date && (
+                          <div className="meta-item">
+                            <span className="meta-icon">🗓️</span>
+                            <span>Tercih: {new Date(request.preferred_date).toLocaleDateString('tr-TR')}</span>
+                          </div>
+                        )}
                         {request.budget_min && request.budget_max && (
                           <div className="meta-item">
                             <span className="meta-icon">💰</span>
                             <span>₺{request.budget_min} - ₺{request.budget_max}</span>
                           </div>
                         )}
+                        <div className="meta-item">
+                          <span className="meta-icon">
+                            {request.priority === 'urgent' ? '🔴' : 
+                             request.priority === 'high' ? '🟠' : 
+                             request.priority === 'medium' ? '🟡' : '🟢'}
+                          </span>
+                          <span>
+                            {request.priority === 'urgent' ? 'Acil' : 
+                             request.priority === 'high' ? 'Yüksek' : 
+                             request.priority === 'medium' ? 'Orta' : 'Düşük'}
+                          </span>
+                        </div>
                       </div>
                       
                       {request.service_provider && (
@@ -1284,11 +1331,22 @@ export default function CustomerDashboard() {
             
             <div className="modal-body">
               <div className="detail-section">
-                <h3>Genel Bilgiler</h3>
+                <h3>📋 Genel Bilgiler</h3>
                 <div className="detail-grid">
                   <div className="detail-item">
                     <span className="detail-label">Başlık:</span>
                     <span className="detail-value">{selectedRequest.title}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Servis Tipi:</span>
+                    <span className="detail-value">
+                      {selectedRequest.service_type === 'plumbing' ? '🚰 Tesisatçı' :
+                       selectedRequest.service_type === 'electrical' ? '⚡ Elektrikçi' :
+                       selectedRequest.service_type === 'cleaning' ? '🧹 Temizlik' :
+                       selectedRequest.service_type === 'appliance' ? '🔌 Beyaz Eşya' :
+                       selectedRequest.service_type === 'computer' ? '💻 Bilgisayar' :
+                       selectedRequest.service_type === 'phone' ? '📱 Telefon' : '🛠️ Diğer'}
+                    </span>
                   </div>
                   <div className="detail-item">
                     <span className="detail-label">Durum:</span>
@@ -1301,22 +1359,67 @@ export default function CustomerDashboard() {
                   </div>
                   <div className="detail-item">
                     <span className="detail-label">Öncelik:</span>
-                    <span className="detail-value">{selectedRequest.priority === 'urgent' ? '🔴 Acil' : selectedRequest.priority === 'high' ? '🟠 Yüksek' : selectedRequest.priority === 'medium' ? '🟡 Orta' : '🟢 Düşük'}</span>
+                    <span className="detail-value">
+                      {selectedRequest.priority === 'urgent' ? '🔴 Acil' : 
+                       selectedRequest.priority === 'high' ? '🟠 Yüksek' : 
+                       selectedRequest.priority === 'medium' ? '🟡 Orta' : '🟢 Düşük'}
+                    </span>
                   </div>
                   <div className="detail-item">
-                    <span className="detail-label">Tarih:</span>
+                    <span className="detail-label">Oluşturulma Tarihi:</span>
                     <span className="detail-value">{new Date(selectedRequest.created_at).toLocaleString('tr-TR')}</span>
                   </div>
+                  {selectedRequest.preferred_date && (
+                    <div className="detail-item">
+                      <span className="detail-label">Tercih Edilen Tarih:</span>
+                      <span className="detail-value">
+                        📅 {new Date(selectedRequest.preferred_date).toLocaleDateString('tr-TR')}
+                        {selectedRequest.preferred_time && ` ⏰ ${selectedRequest.preferred_time}`}
+                      </span>
+                    </div>
+                  )}
+                  {(selectedRequest.budget_min || selectedRequest.budget_max) && (
+                    <div className="detail-item">
+                      <span className="detail-label">Bütçe:</span>
+                      <span className="detail-value">
+                        💰 ₺{selectedRequest.budget_min || 0} - ₺{selectedRequest.budget_max || 0}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
               <div className="detail-section">
-                <h3>Açıklama</h3>
+                <h3>📝 Açıklama</h3>
                 <p className="detail-description">{selectedRequest.description}</p>
               </div>
 
+              {selectedRequest.images && selectedRequest.images.length > 0 && (
+                <div className="detail-section">
+                  <h3>📷 Fotoğraflar</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '12px' }}>
+                    {selectedRequest.images.map((image, index) => (
+                      <img 
+                        key={index}
+                        src={image} 
+                        alt={`Talep fotoğrafı ${index + 1}`}
+                        style={{ 
+                          width: '100%', 
+                          height: '150px', 
+                          objectFit: 'cover', 
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          border: '2px solid #e5e7eb'
+                        }}
+                        onClick={() => window.open(image, '_blank')}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="detail-section">
-                <h3>Adres Bilgileri</h3>
+                <h3>📍 Adres Bilgileri</h3>
                 <div className="detail-grid">
                   <div className="detail-item full-width">
                     <span className="detail-label">Adres:</span>
@@ -1330,6 +1433,22 @@ export default function CustomerDashboard() {
                     <span className="detail-label">İlçe:</span>
                     <span className="detail-value">{selectedRequest.district}</span>
                   </div>
+                  {selectedRequest.latitude && selectedRequest.longitude && (
+                    <div className="detail-item full-width">
+                      <span className="detail-label">Konum:</span>
+                      <span className="detail-value">
+                        🗺️ {selectedRequest.latitude}, {selectedRequest.longitude}
+                        <a 
+                          href={`https://www.google.com/maps?q=${selectedRequest.latitude},${selectedRequest.longitude}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ marginLeft: '8px', color: '#667eea', textDecoration: 'underline' }}
+                        >
+                          Haritada Göster
+                        </a>
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1356,6 +1475,36 @@ export default function CustomerDashboard() {
                         <span>📧 {selectedRequest.service_provider.email}</span>
                         <span>📱 {selectedRequest.service_provider.phone}</span>
                       </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {selectedRequest.status === 'rejected' && selectedRequest.cancellation_reason && (
+                <div className="detail-section">
+                  <h3>⚠️ Reddetme Sebebi</h3>
+                  <div className="rejection-reason-box">
+                    <p className="rejection-reason-text">{selectedRequest.cancellation_reason}</p>
+                  </div>
+                </div>
+              )}
+
+              {selectedRequest.status === 'cancelled' && selectedRequest.cancellation_reason && (
+                <div className="detail-section">
+                  <h3>❌ İptal Sebebi</h3>
+                  <div className="rejection-reason-box">
+                    <p className="rejection-reason-text">{selectedRequest.cancellation_reason}</p>
+                  </div>
+                </div>
+              )}
+
+              {selectedRequest.completed_at && (
+                <div className="detail-section">
+                  <h3>✅ Tamamlanma Bilgisi</h3>
+                  <div className="detail-grid">
+                    <div className="detail-item">
+                      <span className="detail-label">Tamamlanma Tarihi:</span>
+                      <span className="detail-value">{new Date(selectedRequest.completed_at).toLocaleString('tr-TR')}</span>
                     </div>
                   </div>
                 </div>

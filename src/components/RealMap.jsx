@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -58,6 +58,142 @@ const userIcon = new L.DivIcon({
   iconAnchor: [20, 20],
   popupAnchor: [0, -20],
 });
+
+// Map controller component to handle map instance and focused service
+function MapController({ focusedService, centerLocation, onMapReady, onFocusCleared }) {
+  const map = useMap();
+  const processedRef = useRef(false);
+
+  // Set map instance when component mounts
+  useEffect(() => {
+    if (map && onMapReady) {
+      console.log('🗺️ Map instance ready via useMap hook');
+      onMapReady(map);
+      
+      // Set cursor
+      try {
+        const mapContainer = map.getContainer();
+        if (mapContainer) {
+          mapContainer.style.cursor = 'crosshair';
+        }
+      } catch (error) {
+        console.warn('Could not set cursor:', error);
+      }
+    }
+  }, [map, onMapReady]);
+
+  // Update map center when centerLocation changes
+  useEffect(() => {
+    if (map && centerLocation) {
+      console.log('🗺️ Updating map center to:', centerLocation);
+      map.setView([centerLocation.lat, centerLocation.lng], 12);
+    }
+  }, [map, centerLocation]);
+
+  // Handle focused service
+  useEffect(() => {
+    if (map && focusedService && !processedRef.current) {
+      console.log('🎯 Processing focused service:', focusedService);
+      console.log('📍 Raw coordinates:', {
+        lat: focusedService.lat,
+        latitude: focusedService.latitude,
+        lng: focusedService.lng,
+        longitude: focusedService.longitude
+      });
+      
+      processedRef.current = true;
+      
+      const lat = parseFloat(focusedService.lat || focusedService.latitude);
+      const lng = parseFloat(focusedService.lng || focusedService.longitude);
+      
+      console.log('📍 Parsed coordinates:', { lat, lng, isValidLat: !isNaN(lat), isValidLng: !isNaN(lng) });
+      
+      if (!isNaN(lat) && !isNaN(lng)) {
+        console.log('🚀 Executing flyTo to [', lat, ',', lng, ']');
+        
+        // Ensure map is ready before flying
+        setTimeout(() => {
+          try {
+            // Create a proper LatLng object first
+            const targetLatLng = L.latLng(lat, lng);
+            console.log('📍 Created LatLng object:', targetLatLng);
+            
+            // Use setView instead of flyTo for more reliable behavior
+            map.setView(targetLatLng, 16, {
+              animate: true,
+              duration: 1.5
+            });
+            
+            console.log('✅ setView executed');
+            
+            // Open popup after zoom
+            setTimeout(() => {
+              console.log('🔍 Searching for marker...');
+              let markerFound = false;
+              
+              map.eachLayer((layer) => {
+                if (layer instanceof L.Marker) {
+                  const pos = layer.getLatLng();
+                  const latDiff = Math.abs(pos.lat - lat);
+                  const lngDiff = Math.abs(pos.lng - lng);
+                  
+                  console.log('🔍 Checking marker:', { 
+                    markerLat: pos.lat, 
+                    markerLng: pos.lng, 
+                    targetLat: lat, 
+                    targetLng: lng,
+                    latDiff,
+                    lngDiff
+                  });
+                  
+                  // Use a larger tolerance for matching
+                  if (latDiff < 0.001 && lngDiff < 0.001) {
+                    console.log('🔖 Found marker, opening popup');
+                    layer.openPopup();
+                    markerFound = true;
+                    return; // Exit loop once found
+                  }
+                }
+              });
+              
+              if (!markerFound) {
+                console.warn('⚠️ Marker not found at coordinates:', { lat, lng });
+                console.log('📍 Available markers:');
+                map.eachLayer((layer) => {
+                  if (layer instanceof L.Marker) {
+                    const pos = layer.getLatLng();
+                    console.log('  - Marker at:', pos.lat, pos.lng);
+                  }
+                });
+              }
+              
+              // Clear focus
+              if (onFocusCleared) {
+                setTimeout(() => {
+                  console.log('🧹 Clearing focus');
+                  processedRef.current = false;
+                  onFocusCleared();
+                }, 500);
+              }
+            }, 1800);
+          } catch (error) {
+            console.error('❌ Error during map navigation:', error);
+            processedRef.current = false;
+          }
+        }, 300);
+      } else {
+        console.error('❌ Invalid coordinates!', {
+          lat,
+          lng,
+          rawService: focusedService
+        });
+        processedRef.current = false;
+      }
+    }
+  }, [map, focusedService, onFocusCleared]);
+
+  return null;
+}
 
 // Create custom service icon based on service type and logo
 const createServiceIcon = (serviceType, rating, logo) => {
@@ -123,15 +259,15 @@ const createServiceIcon = (serviceType, rating, logo) => {
   });
 };
 
-export default function RealMap({ userLocation, centerLocation, services, focusedServiceId, className = "", height = "400px", onLocationRequest, onLocationSearch, onServiceRequest }) {
-  const mapRef = useRef(null);
+export default function RealMap({ userLocation, centerLocation, services, focusedService, className = "", height = "400px", onLocationRequest, onLocationSearch, onServiceRequest, onFocusCleared }) {
   const scrollPositionRef = useRef(0);
+  const mapContainerId = useRef(`map-container-${Math.random().toString(36).substr(2, 9)}`);
   const [selectedService, setSelectedService] = useState(null);
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [showReviewsModal, setShowReviewsModal] = useState(false);
   const [serviceReviews, setServiceReviews] = useState([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
-  const [mapReady, setMapReady] = useState(true); // Start ready
+  const [mapReady, setMapReady] = useState(true);
   const [mapError, setMapError] = useState(null);
   const [mapInstance, setMapInstance] = useState(null);
 
@@ -173,6 +309,8 @@ export default function RealMap({ userLocation, centerLocation, services, focuse
       document.head.appendChild(style);
     }
   }, []);
+
+
 
   // Modal açıkken body scroll'unu engelle ve scroll pozisyonunu koru
   useEffect(() => {
@@ -233,13 +371,9 @@ export default function RealMap({ userLocation, centerLocation, services, focuse
     }
   };
 
-  // Update map center when centerLocation changes
-  useEffect(() => {
-    if (mapInstance && centerLocation) {
-      console.log('🗺️ Centering map to:', centerLocation);
-      mapInstance.setView([centerLocation.lat, centerLocation.lng], 12);
-    }
-  }, [mapInstance, centerLocation]);
+
+
+
 
   // Handle map clicks for location-based search
   useEffect(() => {
@@ -274,18 +408,20 @@ export default function RealMap({ userLocation, centerLocation, services, focuse
     }
   }, [userLocation]);
 
-  // Cleanup function
+  // Cleanup function - only on component unmount
   useEffect(() => {
     return () => {
       if (mapInstance) {
         try {
+          console.log('🧹 Cleaning up map instance');
+          mapInstance.off();
           mapInstance.remove();
         } catch (error) {
           console.warn('Map cleanup error:', error);
         }
       }
     };
-  }, [mapInstance]);
+  }, []);
   
   // Disable error state for now - always show map
   if (false && mapError && !mapReady) {
@@ -329,29 +465,14 @@ export default function RealMap({ userLocation, centerLocation, services, focuse
         center={mapCenter}
         zoom={13}
         style={{ height: '100%', width: '100%' }}
-        ref={mapRef}
-        key={userLocation ? `map-${userLocation.lat.toFixed(3)}-${userLocation.lng.toFixed(3)}` : 'map-default'}
-        whenCreated={(map) => {
-          try {
-            console.log('🗺️ Map created successfully');
-            setMapInstance(map);
-            
-            // Set ready immediately - don't wait
-            setMapReady(true);
-            setMapError(null);
-            console.log('🗺️ Map set to ready immediately');
-            
-            // Set cursor to crosshair for location selection
-            const mapContainer = map.getContainer();
-            mapContainer.style.cursor = 'crosshair';
-            console.log('🗺️ RealMap: Map cursor set to crosshair for location selection');
-            
-          } catch (error) {
-            console.error('Map creation error:', error);
-            setMapReady(true); // Still allow map to show
-          }
-        }}
+        id={mapContainerId.current}
       >
+        <MapController 
+          focusedService={focusedService}
+          centerLocation={centerLocation}
+          onMapReady={setMapInstance}
+          onFocusCleared={onFocusCleared}
+        />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

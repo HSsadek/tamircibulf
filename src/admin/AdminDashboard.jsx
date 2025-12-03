@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import './AdminDashboard.css';
 
 function useAdminAuth() {
   return useMemo(() => ({
@@ -35,7 +36,14 @@ export default function AdminDashboard() {
   const [page, setPage] = useState(1);
   const perPage = 10;
   const [total, setTotal] = useState(0);
-  const [tab, setTab] = useState('requests'); // 'requests' | 'profile' | 'settings' | 'complaints'
+  const [tab, setTab] = useState('overview'); // 'overview' | 'requests' | 'profile' | 'settings' | 'complaints'
+  const [stats, setStats] = useState({
+    totalRequests: 0,
+    pendingRequests: 0,
+    approvedRequests: 0,
+    rejectedRequests: 0
+  });
+  const [toast, setToast] = useState({ show: false, type: '', message: '', title: '' });
   
   // Debug user info on component mount
   useEffect(() => {
@@ -46,25 +54,23 @@ export default function AdminDashboard() {
     console.log('localStorage admin_token:', localStorage.getItem('admin_token') ? 'Present' : 'Missing');
   }, [auth.token, auth.user]);
 
-  // Fetch all requests once
+  // Fetch all requests on mount (once)
   useEffect(() => {
     if (!auth.token) {
       window.location.hash = '#/admin-portal';
       return;
     }
-    if (tab !== 'requests') { setLoading(false); return; }
     
+    // Fetch data only once when component mounts
     (async () => {
       try {
         setLoading(true);
         // Fetch all service requests without pagination
-        const url = new URL('http://localhost:8000/api/get-service-requests');
-        // Try to get all data by setting a high limit or no pagination params
-        url.searchParams.set('limit', '1000'); // Request many records
+        const url = 'http://localhost:8000/api/admin/service-requests';
         
-        console.log('Fetching all requests, URL:', url.toString());
+        console.log('Fetching all requests, URL:', url);
         
-        const res = await fetch(url.toString(), {
+        const res = await fetch(url, {
           headers: { 
             'Accept': 'application/json', 
             'Authorization': `Bearer ${auth.token}`,
@@ -79,15 +85,26 @@ export default function AdminDashboard() {
         
         const serverList = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []));
         
+        console.log('📋 Başvurular:', serverList);
+        console.log('📋 İlk başvuru:', serverList[0]);
+        
         setAllRequests(serverList);
         setTotal(serverList.length);
+        
+        // Calculate stats
+        setStats({
+          totalRequests: serverList.length,
+          pendingRequests: serverList.filter(r => r.status === 'pending').length,
+          approvedRequests: serverList.filter(r => r.status === 'active').length,
+          rejectedRequests: serverList.filter(r => r.status === 'suspended' || r.status === 'rejected').length
+        });
       } catch (err) {
         setError(err?.message || 'İstekler alınamadı.');
       } finally {
         setLoading(false);
       }
     })();
-  }, [auth.token, tab]);
+  }, [auth.token]); // Only run once when token is available
 
   // Handle client-side pagination
   useEffect(() => {
@@ -104,25 +121,34 @@ export default function AdminDashboard() {
     if (!auth.token || actionLoading) return;
     try {
       setActionLoading(true);
-      // NOTE: Adjust endpoint/method according to your backend
-      const res = await fetch(`http://localhost:8000/api/admin/service-requests/${id}/approve`, {
+      const res = await fetch(`http://localhost:8000/api/admin/service-providers/${id}/approve`, {
         method: 'POST',
         headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${auth.token}` },
       });
       if (!res.ok) throw new Error('Onay başarısız.');
       
       // Filter out the approved application from both allRequests and current page requests
-      setAllRequests((list) => list.filter((r) => r.id !== id));
+      const updatedList = allRequests.filter((r) => r.id !== id);
+      setAllRequests(updatedList);
       setRequests((list) => list.filter((r) => r.id !== id));
       
-      // Update total count
+      // Update total count and stats
       setTotal((prevTotal) => prevTotal - 1);
+      setStats({
+        totalRequests: updatedList.length,
+        pendingRequests: updatedList.filter(r => r.status === 'pending').length,
+        approvedRequests: updatedList.filter(r => r.status === 'active').length,
+        rejectedRequests: updatedList.filter(r => r.status === 'suspended' || r.status === 'rejected').length
+      });
       
       // Close detail panel
       setPanelOpen(false);
       setSelected(null);
+      
+      // Show success toast
+      showToast('success', 'Başarılı!', 'Başvuru başarıyla onaylandı');
     } catch (err) {
-      alert(err?.message || 'Onaylanamadı');
+      showToast('error', 'Hata!', err?.message || 'Başvuru onaylanamadı');
     } finally {
       setActionLoading(false);
     }
@@ -132,37 +158,53 @@ export default function AdminDashboard() {
     if (!auth.token || actionLoading) return;
     try {
       setActionLoading(true);
-      // NOTE: Adjust endpoint/method according to your backend
-      const res = await fetch(`http://localhost:8000/api/admin/service-requests/${id}/reject`, {
+      const res = await fetch(`http://localhost:8000/api/admin/service-providers/${id}/reject`, {
         method: 'POST',
         headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${auth.token}` },
       });
       if (!res.ok) throw new Error('Reddetme başarısız.');
       
       // Filter out the rejected application from both allRequests and current page requests
-      setAllRequests((list) => list.filter((r) => r.id !== id));
+      const updatedList = allRequests.filter((r) => r.id !== id);
+      setAllRequests(updatedList);
       setRequests((list) => list.filter((r) => r.id !== id));
       
-      // Update total count
+      // Update total count and stats
       setTotal((prevTotal) => prevTotal - 1);
+      setStats({
+        totalRequests: updatedList.length,
+        pendingRequests: updatedList.filter(r => r.status === 'pending').length,
+        approvedRequests: updatedList.filter(r => r.status === 'active').length,
+        rejectedRequests: updatedList.filter(r => r.status === 'suspended' || r.status === 'rejected').length
+      });
       
       // Close detail panel
       setPanelOpen(false);
       setSelected(null);
+      
+      // Show success toast
+      showToast('warning', 'Reddedildi', 'Başvuru reddedildi');
     } catch (err) {
-      alert(err?.message || 'Reddedilemedi');
+      showToast('error', 'Hata!', err?.message || 'Başvuru reddedilemedi');
     } finally {
       setActionLoading(false);
     }
   };
 
+  const showToast = (type, title, message) => {
+    setToast({ show: true, type, title, message });
+    setTimeout(() => {
+      setToast({ show: false, type: '', title: '', message: '' });
+    }, 4000);
+  };
+
   const getTabTitle = () => {
     switch(tab) {
-      case 'requests': return 'Servis Başvuruları';
-      case 'complaints': return 'Şikayetler';
-      case 'profile': return 'Profil Ayarları';
-      case 'settings': return 'Sistem Ayarları';
-      default: return 'Dashboard';
+      case 'overview': return '📊 Genel Bakış';
+      case 'requests': return '📋 Servis Başvuruları';
+      case 'profile': return '👤 Profil Ayarları';
+      case 'settings': return '⚙️ Sistem Ayarları';
+      default: return '📊 Dashboard';
     }
   };
 
@@ -171,23 +213,30 @@ export default function AdminDashboard() {
       {/* Sidebar */}
       <div className="admin-sidebar">
         <div className="admin-sidebar-header">
-          <h1 className="admin-sidebar-title">TamirciBul</h1>
+          <div className="admin-logo">
+            <span className="admin-logo-icon">🔧</span>
+            <span className="admin-logo-text">TamirciBul</span>
+          </div>
+          <div className="admin-badge">Admin Panel</div>
         </div>
         
         <nav className="admin-sidebar-nav">
+          <button 
+            className={`admin-nav-item ${tab === 'overview' ? 'active' : ''}`}
+            onClick={() => setTab('overview')}
+          >
+            <span className="admin-nav-icon">📊</span>
+            Genel Bakış
+          </button>
           <button 
             className={`admin-nav-item ${tab === 'requests' ? 'active' : ''}`}
             onClick={() => { setTab('requests'); setPage(1); }}
           >
             <span className="admin-nav-icon">📋</span>
             Başvurular
-          </button>
-          <button 
-            className={`admin-nav-item ${tab === 'complaints' ? 'active' : ''}`}
-            onClick={() => setTab('complaints')}
-          >
-            <span className="admin-nav-icon">⚠️</span>
-            Şikayetler
+            {stats.pendingRequests > 0 && (
+              <span className="admin-badge-count">{stats.pendingRequests}</span>
+            )}
           </button>
           <button 
             className={`admin-nav-item ${tab === 'profile' ? 'active' : ''}`}
@@ -237,8 +286,143 @@ export default function AdminDashboard() {
         </header>
         
         <div className="admin-content">
-          {loading && <p>Yükleniyor...</p>}
-          {error && tab==='requests' && <p style={{ color: 'var(--danger)' }}>{error}</p>}
+          {/* Loading State */}
+          {loading && (tab === 'requests' || tab === 'overview') && (
+            <div className="admin-loading-container">
+              <div className="admin-loading-spinner">
+                <div className="admin-spinner-ring"></div>
+                <div className="admin-spinner-ring"></div>
+                <div className="admin-spinner-ring"></div>
+                <div className="admin-spinner-icon">🔧</div>
+              </div>
+              <p className="admin-loading-text">Veriler yükleniyor...</p>
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && tab==='requests' && !loading && (
+            <div className="admin-error-container">
+              <div className="admin-error-icon">⚠️</div>
+              <p className="admin-error-text">{error}</p>
+              <button 
+                className="admin-error-retry"
+                onClick={() => window.location.reload()}
+              >
+                🔄 Tekrar Dene
+              </button>
+            </div>
+          )}
+
+          {/* Overview Tab */}
+          {tab === 'overview' && !loading && (
+            <div className="admin-overview">
+              <div className="admin-stats-grid">
+                <div className="admin-stat-card">
+                  <div className="admin-stat-icon" style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'}}>
+                    📋
+                  </div>
+                  <div className="admin-stat-content">
+                    <h3>{stats.totalRequests}</h3>
+                    <p>Toplam Başvuru</p>
+                  </div>
+                </div>
+                
+                <div className="admin-stat-card">
+                  <div className="admin-stat-icon" style={{background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)'}}>
+                    ⏳
+                  </div>
+                  <div className="admin-stat-content">
+                    <h3>{stats.pendingRequests}</h3>
+                    <p>Bekleyen</p>
+                  </div>
+                </div>
+                
+                <div className="admin-stat-card">
+                  <div className="admin-stat-icon" style={{background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'}}>
+                    ✅
+                  </div>
+                  <div className="admin-stat-content">
+                    <h3>{stats.approvedRequests}</h3>
+                    <p>Onaylanan</p>
+                  </div>
+                </div>
+                
+                <div className="admin-stat-card">
+                  <div className="admin-stat-icon" style={{background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'}}>
+                    ❌
+                  </div>
+                  <div className="admin-stat-content">
+                    <h3>{stats.rejectedRequests}</h3>
+                    <p>Reddedilen</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="admin-card" style={{ marginTop: '24px' }}>
+                <div className="admin-card-header">
+                  <h2 className="admin-card-title">Son Başvurular</h2>
+                </div>
+                <div className="admin-card-body" style={{ padding: 0 }}>
+                  {allRequests.slice(0, 5).map((r) => (
+                    <div
+                      key={r.id}
+                      className="admin-request-item-detailed"
+                      onClick={() => {
+                        setSelected(r);
+                        setPanelOpen(true);
+                      }}
+                    >
+                      <div className="admin-request-icon">
+                        {r.service_type === 'plumbing' ? '🚰' :
+                         r.service_type === 'electrical' ? '⚡' :
+                         r.service_type === 'cleaning' ? '🧹' :
+                         r.service_type === 'appliance' ? '🔌' :
+                         r.service_type === 'computer' ? '💻' :
+                         r.service_type === 'phone' ? '📱' : '🏢'}
+                      </div>
+                      <div className="admin-request-content">
+                        <div className="admin-request-header">
+                          <span className="admin-request-company">{r.company_name || r.companyName}</span>
+                          <span className={`admin-request-status ${r.status || 'pending'}`}>
+                            {r.status === 'active' ? '✅ Onaylandı' : 
+                             r.status === 'suspended' ? '❌ Reddedildi' : 
+                             r.status === 'rejected' ? '❌ Reddedildi' : '⏳ Beklemede'}
+                          </span>
+                        </div>
+                        <div className="admin-request-meta">
+                          <span className="admin-request-type">
+                            {r.service_type === 'plumbing' ? 'Tesisatçı' :
+                             r.service_type === 'electrical' ? 'Elektrikçi' :
+                             r.service_type === 'cleaning' ? 'Temizlik' :
+                             r.service_type === 'appliance' ? 'Beyaz Eşya' :
+                             r.service_type === 'computer' ? 'Bilgisayar' :
+                             r.service_type === 'phone' ? 'Telefon' : 
+                             r.serviceType || 'Diğer'}
+                          </span>
+                          {r.city && (
+                            <span className="admin-request-location">📍 {r.district ? `${r.district}, ` : ''}{r.city}</span>
+                          )}
+                          {r.created_at && (
+                            <span className="admin-request-date">📅 {new Date(r.created_at).toLocaleDateString('tr-TR')}</span>
+                          )}
+                        </div>
+                        {r.description && (
+                          <div className="admin-request-description">
+                            {r.description.substring(0, 80)}{r.description.length > 80 ? '...' : ''}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {allRequests.length === 0 && (
+                    <div style={{ padding: 48, textAlign: 'center', color: 'rgba(255, 255, 255, 0.6)' }}>
+                      Henüz başvuru bulunmuyor.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Requests Tab */}
           {tab==='requests' && !loading && !error && (
@@ -247,15 +431,51 @@ export default function AdminDashboard() {
                 {(Array.isArray(requests) ? requests : []).map((r) => (
                   <div
                     key={r.id}
-                    className="admin-request-item"
+                    className="admin-request-item-detailed"
                     onClick={() => {
                       setSelected(r);
                       setPanelOpen(true);
                     }}
                   >
-                    <div className="admin-request-company">{r.company_name || r.companyName}</div>
-                    <div className={`admin-request-status ${r.status || 'pending'}`}>
-                      {r.status === 'approved' ? 'Onaylandı' : r.status === 'rejected' ? 'Reddedildi' : 'Beklemede'}
+                    <div className="admin-request-icon">
+                      {r.service_type === 'plumbing' ? '🚰' :
+                       r.service_type === 'electrical' ? '⚡' :
+                       r.service_type === 'cleaning' ? '🧹' :
+                       r.service_type === 'appliance' ? '🔌' :
+                       r.service_type === 'computer' ? '💻' :
+                       r.service_type === 'phone' ? '📱' : '🏢'}
+                    </div>
+                    <div className="admin-request-content">
+                      <div className="admin-request-header">
+                        <span className="admin-request-company">{r.company_name || r.companyName}</span>
+                        <span className={`admin-request-status ${r.status || 'pending'}`}>
+                          {r.status === 'active' ? '✅ Onaylandı' : 
+                           r.status === 'suspended' ? '❌ Reddedildi' : 
+                           r.status === 'rejected' ? '❌ Reddedildi' : '⏳ Beklemede'}
+                        </span>
+                      </div>
+                      <div className="admin-request-meta">
+                        <span className="admin-request-type">
+                          {r.service_type === 'plumbing' ? 'Tesisatçı' :
+                           r.service_type === 'electrical' ? 'Elektrikçi' :
+                           r.service_type === 'cleaning' ? 'Temizlik' :
+                           r.service_type === 'appliance' ? 'Beyaz Eşya' :
+                           r.service_type === 'computer' ? 'Bilgisayar' :
+                           r.service_type === 'phone' ? 'Telefon' : 
+                           r.serviceType || 'Diğer'}
+                        </span>
+                        {r.city && (
+                          <span className="admin-request-location">📍 {r.district ? `${r.district}, ` : ''}{r.city}</span>
+                        )}
+                        {r.created_at && (
+                          <span className="admin-request-date">📅 {new Date(r.created_at).toLocaleDateString('tr-TR')}</span>
+                        )}
+                      </div>
+                      {r.description && (
+                        <div className="admin-request-description">
+                          {r.description.substring(0, 80)}{r.description.length > 80 ? '...' : ''}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -290,16 +510,6 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               )}
-            </div>
-          )}
-
-          {/* Complaints Tab */}
-          {tab==='complaints' && (
-            <div className="admin-card">
-              <div className="admin-card-body">
-                <h3>Şikayetler</h3>
-                <p style={{ color: 'var(--text-muted)' }}>Şikayet yönetimi için API bilgilerini paylaşınca bu listeyi dolduracağım.</p>
-              </div>
             </div>
           )}
 
@@ -391,59 +601,172 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Detail Panel */}
+      {/* Detail Modal */}
       {panelOpen && selected && (
-        <div className="admin-detail-panel">
-          <div className="admin-detail-header">
-            <h2 className="admin-detail-title">Başvuru Detayı</h2>
-            <button className="admin-detail-close" onClick={() => setPanelOpen(false)}>
-              ✕
-            </button>
+        <div className="admin-modal-overlay" onClick={() => setPanelOpen(false)}>
+          <div className="admin-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-header">
+              <h2 className="admin-modal-title">📋 Başvuru Detayı</h2>
+              <button className="admin-modal-close" onClick={() => setPanelOpen(false)}>
+                ✕
+              </button>
+            </div>
+            
+            <div className="admin-modal-body">
+              <div className="admin-detail-section">
+                <h3>🏢 Firma Bilgileri</h3>
+                <div className="admin-detail-grid">
+                  <div className="admin-detail-item">
+                    <span className="admin-detail-label">Firma Adı:</span>
+                    <span className="admin-detail-value">{selected.company_name || selected.companyName}</span>
+                  </div>
+                  <div className="admin-detail-item">
+                    <span className="admin-detail-label">Servis Türü:</span>
+                    <span className="admin-detail-value">
+                      {selected.service_type === 'plumbing' ? '🚰 Tesisatçı' :
+                       selected.service_type === 'electrical' ? '⚡ Elektrikçi' :
+                       selected.service_type === 'cleaning' ? '🧹 Temizlik' :
+                       selected.service_type === 'appliance' ? '🔌 Beyaz Eşya' :
+                       selected.service_type === 'computer' ? '💻 Bilgisayar' :
+                       selected.service_type === 'phone' ? '📱 Telefon' : 
+                       selected.serviceType || '🛠️ Diğer'}
+                    </span>
+                  </div>
+                  <div className="admin-detail-item">
+                    <span className="admin-detail-label">Durum:</span>
+                    <span className={`admin-detail-status ${selected.status || 'pending'}`}>
+                      {selected.status === 'active' ? '✅ Onaylandı' : 
+                       selected.status === 'suspended' ? '❌ Reddedildi' :
+                       selected.status === 'rejected' ? '❌ Reddedildi' : '⏳ Beklemede'}
+                    </span>
+                  </div>
+                  {selected.created_at && (
+                    <div className="admin-detail-item">
+                      <span className="admin-detail-label">Başvuru Tarihi:</span>
+                      <span className="admin-detail-value">
+                        {new Date(selected.created_at).toLocaleString('tr-TR')}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {selected.description && (
+                <div className="admin-detail-section">
+                  <h3>📝 Açıklama</h3>
+                  <p className="admin-detail-description">{selected.description}</p>
+                </div>
+              )}
+
+              <div className="admin-detail-section">
+                <h3>📞 İletişim Bilgileri</h3>
+                <div className="admin-detail-grid">
+                  <div className="admin-detail-item full-width">
+                    <span className="admin-detail-label">Telefon:</span>
+                    <span className="admin-detail-value">
+                      {selected.phone || '—'}
+                      {selected.phone && (
+                        <a 
+                          href={`tel:${selected.phone}`}
+                          style={{ marginLeft: '8px', color: '#667eea', textDecoration: 'underline' }}
+                        >
+                          Ara
+                        </a>
+                      )}
+                    </span>
+                  </div>
+                  <div className="admin-detail-item full-width">
+                    <span className="admin-detail-label">E-posta:</span>
+                    <span className="admin-detail-value">
+                      {selected.email || '—'}
+                      {selected.email && (
+                        <a 
+                          href={`mailto:${selected.email}`}
+                          style={{ marginLeft: '8px', color: '#667eea', textDecoration: 'underline' }}
+                        >
+                          Mail Gönder
+                        </a>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {selected.address && (
+                <div className="admin-detail-section">
+                  <h3>📍 Adres Bilgileri</h3>
+                  <div className="admin-detail-grid">
+                    <div className="admin-detail-item full-width">
+                      <span className="admin-detail-label">Adres:</span>
+                      <span className="admin-detail-value">{selected.address}</span>
+                    </div>
+                    {selected.city && (
+                      <div className="admin-detail-item">
+                        <span className="admin-detail-label">Şehir:</span>
+                        <span className="admin-detail-value">{selected.city}</span>
+                      </div>
+                    )}
+                    {selected.district && (
+                      <div className="admin-detail-item">
+                        <span className="admin-detail-label">İlçe:</span>
+                        <span className="admin-detail-value">{selected.district}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {(selected.working_hours || selected.workingHours) && (
+                <div className="admin-detail-section">
+                  <h3>🕐 Çalışma Saatleri</h3>
+                  <p className="admin-detail-description">{selected.working_hours || selected.workingHours}</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="admin-modal-footer">
+              <button 
+                className="admin-modal-btn secondary" 
+                onClick={() => setPanelOpen(false)}
+                disabled={actionLoading}
+              >
+                Kapat
+              </button>
+              <button 
+                className="admin-modal-btn reject" 
+                onClick={() => onReject(selected.id)}
+                disabled={actionLoading}
+              >
+                {actionLoading ? '⏳ İşleniyor...' : '❌ Reddet'}
+              </button>
+              <button 
+                className="admin-modal-btn approve" 
+                onClick={() => onApprove(selected.id)}
+                disabled={actionLoading}
+              >
+                {actionLoading ? '⏳ İşleniyor...' : '✅ Onayla'}
+              </button>
+            </div>
           </div>
-          
-          <div className="admin-detail-body">
-            <div className="admin-detail-field">
-              <div className="admin-detail-label">Firma</div>
-              <div className="admin-detail-value">{selected.company_name || selected.companyName}</div>
-            </div>
-            <div className="admin-detail-field">
-              <div className="admin-detail-label">Servis Türü</div>
-              <div className="admin-detail-value">{selected.service_type || selected.serviceType || '—'}</div>
-            </div>
-            <div className="admin-detail-field">
-              <div className="admin-detail-label">Açıklama</div>
-              <div className="admin-detail-value">{selected.description || '—'}</div>
-            </div>
-            <div className="admin-detail-field">
-              <div className="admin-detail-label">Adres</div>
-              <div className="admin-detail-value">{selected.address || '—'}</div>
-            </div>
-            <div className="admin-detail-field">
-              <div className="admin-detail-label">Telefon</div>
-              <div className="admin-detail-value">{selected.phone || '—'}</div>
-            </div>
-            <div className="admin-detail-field">
-              <div className="admin-detail-label">E-posta</div>
-              <div className="admin-detail-value">{selected.email || '—'}</div>
-            </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className={`admin-toast ${toast.type} show`}>
+          <div className="admin-toast-icon">
+            {toast.type === 'success' && '✅'}
+            {toast.type === 'error' && '❌'}
+            {toast.type === 'warning' && '⚠️'}
+            {toast.type === 'info' && 'ℹ️'}
           </div>
-          
-          <div className="admin-detail-actions">
-            <button 
-              className="admin-detail-btn approve" 
-              onClick={() => onApprove(selected.id)}
-              disabled={actionLoading}
-            >
-              {actionLoading ? 'İşleniyor...' : 'Onayla'}
-            </button>
-            <button 
-              className="admin-detail-btn reject" 
-              onClick={() => onReject(selected.id)}
-              disabled={actionLoading}
-            >
-              {actionLoading ? 'İşleniyor...' : 'Reddet'}
-            </button>
+          <div className="admin-toast-content">
+            <div className="admin-toast-title">{toast.title}</div>
+            <div className="admin-toast-message">{toast.message}</div>
           </div>
+          <button className="admin-toast-close" onClick={() => setToast({ ...toast, show: false })}>
+            ✕
+          </button>
         </div>
       )}
     </div>

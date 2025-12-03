@@ -61,6 +61,8 @@ export default function Register() {
           password_confirmation: formData.password_confirmation,
           role: selectedRole,
           ...(selectedRole === 'service' && {
+            company_name: formData.company_name,
+            phone: formData.phone,
             service_type: formData.service_type,
             description: formData.description
           })
@@ -254,20 +256,42 @@ export default function Register() {
                 {selectedRole === 'service' && (
                   <>
                     <div className="register-form-group">
-                      <label className="register-form-label">Hizmet Türü</label>
+                      <label className="register-form-label">Firma Adı *</label>
+                      <input 
+                        name="company_name" 
+                        type="text"
+                        className="register-form-input"
+                        placeholder="Örn: Ahmet Tesisat Ltd."
+                        required
+                      />
+                    </div>
+
+                    <div className="register-form-group">
+                      <label className="register-form-label">Telefon Numarası *</label>
+                      <input 
+                        name="phone" 
+                        type="tel"
+                        className="register-form-input"
+                        placeholder="0555 123 45 67"
+                        required
+                      />
+                    </div>
+
+                    <div className="register-form-group">
+                      <label className="register-form-label">Hizmet Türü *</label>
                       <select 
                         name="service_type" 
                         className="register-form-input"
                         required
                       >
                         <option value="">Hizmet türünü seçin</option>
-                        <option value="plumbing">Tesisatçı</option>
-                        <option value="electrical">Elektrikçi</option>
-                        <option value="cleaning">Temizlik</option>
-                        <option value="appliance">Beyaz Eşya</option>
-                        <option value="computer">Bilgisayar</option>
-                        <option value="phone">Telefon</option>
-                        <option value="other">Diğer</option>
+                        <option value="plumbing">🚰 Tesisatçı</option>
+                        <option value="electrical">⚡ Elektrikçi</option>
+                        <option value="cleaning">🧹 Temizlik</option>
+                        <option value="appliance">🔌 Beyaz Eşya</option>
+                        <option value="computer">💻 Bilgisayar</option>
+                        <option value="phone">📱 Telefon</option>
+                        <option value="other">🛠️ Diğer</option>
                       </select>
                     </div>
 

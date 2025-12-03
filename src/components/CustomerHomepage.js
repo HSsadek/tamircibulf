@@ -60,6 +60,7 @@ export default function CustomerHomepage() {
   const [showReviewsModal, setShowReviewsModal] = useState(false);
   const [showRequestDialog, setShowRequestDialog] = useState(false);
   const [requestService, setRequestService] = useState(null);
+  const [focusedService, setFocusedService] = useState(null);
 
   const categories = [
     { id: 'all', name: 'Tümü', icon: '🔧' },
@@ -707,24 +708,27 @@ export default function CustomerHomepage() {
           
           {loading ? (
             <div className="customer-loading">Hizmetler yükleniyor...</div>
-          ) : showMap ? (
-            <div style={{ position: 'relative' }}>
-              {realUserLocation ? (
-                <>
+          ) : (
+            <>
+              {/* Map View - Always rendered but hidden with CSS */}
+              <div style={{ display: showMap ? 'block' : 'none', position: 'relative', width: '100%' }}>
+                {realUserLocation && (
                   <RealMap 
+                    key="customer-map-singleton"
                     userLocation={realUserLocation}
                     centerLocation={selectedCity ? cities.find(c => c.id === selectedCity) : realUserLocation}
-                    services={filteredServices} 
-                    height="500px"
+                    services={filteredServices}
+                    focusedService={focusedService}
+                    height="600px"
                     onLocationRequest={() => {
                       if (navigator.geolocation) {
                         setLocationStatus('loading');
                         navigator.geolocation.getCurrentPosition(
                           (pos) => {
                             const newLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                            setRealUserLocation(newLocation); // Gerçek konumu güncelle
+                            setRealUserLocation(newLocation);
                             if (!selectedCity) {
-                              setUserLocation(newLocation); // Şehir seçili değilse API konumunu da güncelle
+                              setUserLocation(newLocation);
                             }
                             setLocationStatus('success');
                           },
@@ -742,19 +746,21 @@ export default function CustomerHomepage() {
                     }}
                     onLocationSearch={handleLocationSearch}
                     onServiceRequest={handleServiceRequest}
+                    onFocusCleared={() => setFocusedService(null)}
                   />
-                </>
-              ) : (
-                <div className="customer-loading" style={{ textAlign: 'center', padding: '50px' }}>
-                  📍 Konum bilgisi yükleniyor...
-                  <br />
-                  <small>Harita görünümü için konum izni gereklidir</small>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="customer-services-grid">
-              {filteredServices.map(service => (
+                )}
+                {!realUserLocation && (
+                  <div className="customer-loading" style={{ textAlign: 'center', padding: '50px' }}>
+                    📍 Konum bilgisi yükleniyor...
+                    <br />
+                    <small>Harita görünümü için konum izni gereklidir</small>
+                  </div>
+                )}
+              </div>
+
+              {/* List View - Always rendered but hidden with CSS */}
+              <div style={{ display: showMap ? 'none' : 'block' }} className="customer-services-grid">
+                {filteredServices.map(service => (
                 <div key={service.id} className="customer-service-card">
                   <div className="customer-service-header">
                     <div className="customer-service-image">
@@ -816,7 +822,8 @@ export default function CustomerHomepage() {
                   </div>
                 </div>
               ))}
-            </div>
+              </div>
+            </>
           )}
           
           {/* Load More Button */}
@@ -1024,8 +1031,22 @@ export default function CustomerHomepage() {
                   <button 
                     className="map-btn show-map-btn"
                     onClick={() => {
+                      console.log('🗺️ Haritada Göster clicked, service:', selectedService);
+                      const wasMapShown = showMap;
+                      
                       closeServiceModal();
-                      setShowMap(true);
+                      
+                      if (!wasMapShown) {
+                        // If map wasn't shown, show it first
+                        setShowMap(true);
+                      }
+                      
+                      // Set focused service with a delay
+                      setTimeout(() => {
+                        console.log('🎯 Setting focused service:', selectedService);
+                        setFocusedService(selectedService);
+                      }, wasMapShown ? 100 : 500);
+                      
                       // Scroll to map
                       setTimeout(() => {
                         const mapSection = document.querySelector('.customer-services');

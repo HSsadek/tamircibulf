@@ -6,6 +6,20 @@
   background-attachment: fixed;
 }
 
+/* Map Container - Full Width */
+.real-map-container {
+  width: 100% !important;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  margin: 20px 0;
+}
+
+.real-map-container .leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+}
+
 .customer-container {
   max-width: 1200px;
   margin: 0 auto;

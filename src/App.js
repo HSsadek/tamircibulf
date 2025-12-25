@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import './App.css';
-import LandingPage from './components/LandingPage';
 import AuthLayout from './auth/AuthLayout';
 import MainApp from './main/MainApp';
 import ServiceRegistration from './service/ServiceRegistration';
@@ -13,6 +12,8 @@ import CustomerHomepage from './components/CustomerHomepage';
 import CustomerDashboard from './components/CustomerDashboard';
 import ServiceDashboard from './components/ServiceDashboard';
 import ServiceDetail from './main/ServiceDetail';
+import ForgotPassword from './components/ForgotPassword';
+import ResetPassword from './components/ResetPassword';
 
 function useHash() {
   const [hash, setHash] = useState(window.location.hash || '#/');
@@ -71,6 +72,12 @@ function App() {
   if (hash.startsWith('#/register')) {
     return <Register />;
   }
+  if (hash.startsWith('#/forgot-password')) {
+    return <ForgotPassword />;
+  }
+  if (hash.startsWith('#/reset-password')) {
+    return <ResetPassword />;
+  }
   if (hash.startsWith('#/auth')) {
     return <AuthLayout />;
   }
@@ -94,8 +101,8 @@ function App() {
     return checkAndRedirectByRole();
   }
   
-  // Fallback to landing page for unknown routes
-  return <LandingPage />;
+  // Fallback to customer homepage for unknown routes
+  return <CustomerHomepage />;
 }
 
 export default App;

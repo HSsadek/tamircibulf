@@ -52,7 +52,7 @@ export default function CustomerHomepage() {
   const [userLocation, setUserLocation] = useState(null);
   const [realUserLocation, setRealUserLocation] = useState(null); // Kullanıcının gerçek GPS konumu
   const [locationStatus, setLocationStatus] = useState('loading'); // 'loading', 'success', 'error', 'denied'
-  const [mapZoomData, setMapZoomData] = useState({ zoom: 12, radius: 10 });
+  const [mapZoomData, setMapZoomData] = useState({ zoom: 12, radius: 10 }); // 10km radius ile daha geniş sonuçlar
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [selectedService, setSelectedService] = useState(null);
   const [selectedCity, setSelectedCity] = useState('');
@@ -83,20 +83,13 @@ export default function CustomerHomepage() {
     { id: 'gaziantep', name: 'Gaziantep', lat: 37.0662, lng: 37.3833 },
     { id: 'kayseri', name: 'Kayseri', lat: 38.7312, lng: 35.4787 },
     { id: 'eskisehir', name: 'Eskişehir', lat: 39.7767, lng: 30.5206 },
-    { id: 'kahramanmaras', name: 'Kahramanmaraş', lat: 37.5858, lng: 36.9371 }
+    { id: 'kahramanmaras', name: 'Kahramanmaraş', lat: 37.5858, lng: 36.9371 },
+    { id: 'elazig', name: 'Elazığ', lat: 38.6748, lng: 39.2264 }
   ];
 
   useEffect(() => {
     getUserLocation();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Initial fetch when user location is set
-  useEffect(() => {
-    if (userLocation) {
-      console.log('🗺️ CustomerHomepage: User location set, fetching initial services');
-      fetchServices(1, false);
-    }
-  }, [userLocation]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Modal açıkken body scroll'unu engelle ve scroll pozisyonunu koru
   useEffect(() => {
@@ -126,7 +119,10 @@ export default function CustomerHomepage() {
 
   useEffect(() => {
     // Refetch when any filter changes including zoom
-    fetchServices(1, false);
+    if (userLocation) {
+      console.log('🗺️ CustomerHomepage: Fetching services due to filter change');
+      fetchServices(1, false);
+    }
   }, [userLocation, selectedCategory, searchQuery, selectedCity, mapZoomData.radius]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -165,37 +161,45 @@ export default function CustomerHomepage() {
           setUserLocation(location);
           setRealUserLocation(location);
           setLocationStatus('success');
+          console.log('✅ Gerçek konum kullanılıyor:', location);
         },
         (error) => {
           console.error('Konum alınamadı:', error);
           if (error.code === error.PERMISSION_DENIED) {
             setLocationStatus('denied');
+            console.log('❌ Konum izni reddedildi');
           } else {
             setLocationStatus('error');
+            console.log('❌ Konum alınamadı, hata:', error.message);
           }
           
-          // Sessizce varsayılan konumu kullan
+          // Kullanıcının bulunduğu şehri tespit etmeye çalış (IP bazlı)
+          // Şimdilik Elazığ varsayılan olarak kullanılacak
           const defaultLocation = {
-            lat: 41.0082,
-            lng: 28.9784
+            lat: 38.6748, // Elazığ koordinatları
+            lng: 39.2264
           };
           setUserLocation(defaultLocation);
           setRealUserLocation(defaultLocation);
+          console.log('⚠️ Varsayılan konum olarak Elazığ kullanılıyor:', defaultLocation);
+          console.log('💡 Konum izni vererek yakınınızdaki servisleri görebilirsiniz');
         },
         {
-          enableHighAccuracy: false, // Daha hızlı sonuç için
-          timeout: 5000, // 5 saniye
-          maximumAge: 600000 // 10 dakika cache
+          enableHighAccuracy: true, // Daha doğru konum için
+          timeout: 15000, // 15 saniye timeout (biraz daha uzun)
+          maximumAge: 60000 // 1 dakika cache (daha kısa)
         }
       );
     } else {
       setLocationStatus('error');
+      // Elazığ'ı varsayılan konum olarak kullan
       const defaultLocation = {
-        lat: 41.0082,
-        lng: 28.9784
+        lat: 38.6748,
+        lng: 39.2264
       };
       setUserLocation(defaultLocation);
       setRealUserLocation(defaultLocation);
+      console.log('❌ Geolocation desteklenmiyor, Elazığ varsayılan konum olarak ayarlandı');
     }
   };
 
@@ -546,16 +550,16 @@ export default function CustomerHomepage() {
                   className={`location-status-btn ${locationStatus}`}
                   onClick={getUserLocation}
                   title={
-                    locationStatus === 'success' ? 'Konum aktif' :
-                    locationStatus === 'denied' ? 'Konum izni reddedildi - Tekrar dene' :
-                    locationStatus === 'error' ? 'Konum alınamadı - Tekrar dene' :
+                    locationStatus === 'success' ? `Konum aktif - ${realUserLocation ? `${realUserLocation.lat.toFixed(4)}, ${realUserLocation.lng.toFixed(4)}` : 'Bilinmeyen konum'} çevresindeki servisleri gösteriliyor` :
+                    locationStatus === 'denied' ? 'Konum izni reddedildi - Elazığ varsayılan konum olarak kullanılıyor. Yakınınızdaki servisleri görmek için konum iznini açın.' :
+                    locationStatus === 'error' ? 'Konum alınamadı - Elazığ varsayılan konum olarak kullanılıyor. Tekrar denemek için tıklayın.' :
                     'Konum alınıyor...'
                   }
                 >
-                  {locationStatus === 'success' && '📍 Konumum'}
-                  {locationStatus === 'denied' && '🚫 Konum İzni'}
-                  {locationStatus === 'error' && '⚠️ Konum Hatası'}
-                  {locationStatus === 'loading' && '⏳ Konum...'}
+                  {locationStatus === 'success' && '📍 Konumum Aktif'}
+                  {locationStatus === 'denied' && '📍 Konum İzni Gerekli'}
+                  {locationStatus === 'error' && '📍 Konum Alınamadı'}
+                  {locationStatus === 'loading' && '⏳ Konum Alınıyor...'}
                 </button>
               </div>
             ) : (
@@ -565,16 +569,16 @@ export default function CustomerHomepage() {
                   className={`location-status-btn ${locationStatus}`}
                   onClick={getUserLocation}
                   title={
-                    locationStatus === 'success' ? 'Konum aktif' :
-                    locationStatus === 'denied' ? 'Konum izni reddedildi - Tekrar dene' :
-                    locationStatus === 'error' ? 'Konum alınamadı - Tekrar dene' :
+                    locationStatus === 'success' ? `Konum aktif - ${realUserLocation ? `${realUserLocation.lat.toFixed(4)}, ${realUserLocation.lng.toFixed(4)}` : 'Bilinmeyen konum'} çevresindeki servisleri gösteriliyor` :
+                    locationStatus === 'denied' ? 'Konum izni reddedildi - Elazığ varsayılan konum olarak kullanılıyor. Yakınınızdaki servisleri görmek için konum iznini açın.' :
+                    locationStatus === 'error' ? 'Konum alınamadı - Elazığ varsayılan konum olarak kullanılıyor. Tekrar denemek için tıklayın.' :
                     'Konum alınıyor...'
                   }
                 >
-                  {locationStatus === 'success' && '📍 Konumum'}
-                  {locationStatus === 'denied' && '🚫 Konum İzni'}
-                  {locationStatus === 'error' && '⚠️ Konum Hatası'}
-                  {locationStatus === 'loading' && '⏳ Konum...'}
+                  {locationStatus === 'success' && '📍 Konumum Aktif'}
+                  {locationStatus === 'denied' && '📍 Konum İzni Gerekli'}
+                  {locationStatus === 'error' && '📍 Konum Alınamadı'}
+                  {locationStatus === 'loading' && '⏳ Konum Alınıyor...'}
                 </button>
                 <a href="#/login" className="customer-login-btn">Giriş Yap</a>
               </>
@@ -650,7 +654,8 @@ export default function CustomerHomepage() {
                   onClick={() => setShowLocationFilter(!showLocationFilter)}
                   title="Konum seç"
                 >
-                  📍 {selectedCity ? cities.find(c => c.id === selectedCity)?.name : 'Mevcut Konumum'}
+                  📍 {selectedCity ? cities.find(c => c.id === selectedCity)?.name : 
+                       (locationStatus === 'success' ? 'Mevcut Konumum' : 'Elazığ (Varsayılan)')}
                   <span className="dropdown-arrow">▼</span>
                 </button>
                 
@@ -671,8 +676,13 @@ export default function CustomerHomepage() {
                         className={`location-option ${selectedCity === '' ? 'active' : ''}`}
                         onClick={() => handleCitySelection('')}
                       >
-                        📍 Mevcut Konumum
-                        <small>GPS konumunuzu kullanır</small>
+                        📍 {locationStatus === 'success' ? 'Mevcut Konumum' : 'Elazığ (Varsayılan)'}
+                        <small>
+                          {locationStatus === 'success' 
+                            ? 'GPS konumunuzu kullanır - yakınınızdaki servisleri gösterir' 
+                            : 'Konum izni verilmediği için Elazığ varsayılan konum olarak kullanılır'
+                          }
+                        </small>
                       </button>
                       
                       {cities.map(city => (
